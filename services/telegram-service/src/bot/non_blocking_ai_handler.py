@@ -19,7 +19,7 @@ if str(根目录) not in sys.path:
 
 # 导入时间相关函数
 try:
-    from crypto_trading_bot import format_beijing_time, get_beijing_time
+    from main import format_beijing_time, get_beijing_time
 except ImportError:
     # 备用函数定义，防止循环导入
     def format_beijing_time(dt_str, format_str="%Y-%m-%d %H:%M:%S"):

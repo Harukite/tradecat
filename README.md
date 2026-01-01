@@ -38,7 +38,7 @@ cd services/data-service && ./scripts/start.sh start
 cd services/trading-service && ./scripts/start.sh
 
 # 4. 启动 Telegram Bot
-cd services/telegram-service && python -m src.crypto_trading_bot
+cd services/telegram-service && python -m src.main
 ```
 
 ## ✅ 验收一键命令

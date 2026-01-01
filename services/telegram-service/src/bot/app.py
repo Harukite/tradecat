@@ -75,7 +75,7 @@ if str(REPO_ROOT) not in sys.path:
 
 # 当以脚本方式运行（__main__）时，为避免 utils.signal_formatter 反向导入失败，显式注册模块别名
 if __name__ == "__main__":
-    sys.modules.setdefault("crypto_trading_bot", sys.modules[__name__])
+    sys.modules.setdefault("main", sys.modules[__name__])
 
 from cards import RankingRegistry
 
@@ -3675,7 +3675,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.warning("⚠️ user_handler为None，尝试多种方式重新初始化...")
         try:
             # 方法1：尝试直接初始化
-            from crypto_trading_bot import UserRequestHandler
+            from main import UserRequestHandler
             user_handler = UserRequestHandler(card_registry=ensure_ranking_registry())
             logger.info("✅ 直接初始化 user_handler 成功")
         except Exception as e1:

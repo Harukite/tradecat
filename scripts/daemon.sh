@@ -52,7 +52,7 @@ check_telegram_service() {
     fi
     
     # 检查是否有进程在运行但没有 PID 文件
-    existing=$(pgrep -f "python3 -m src.crypto_trading_bot" | head -1)
+    existing=$(pgrep -f "python3 -m src.main" | head -1)
     if [ -n "$existing" ]; then
         echo "$existing" > "$TELEGRAM_PID"
         return 0
@@ -62,7 +62,7 @@ check_telegram_service() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] telegram-service 未运行，启动..."
     export HTTPS_PROXY=http://127.0.0.1:9910
     export HTTP_PROXY=http://127.0.0.1:9910
-    PYTHONPATH=src nohup python3 -m src.crypto_trading_bot > logs/bot.log 2>&1 &
+    PYTHONPATH=src nohup python3 -m src.main > logs/bot.log 2>&1 &
     echo $! > "$TELEGRAM_PID"
 }
 

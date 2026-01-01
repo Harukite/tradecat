@@ -27,7 +27,7 @@ if str(根目录) not in sys.path:
 
 # 导入智能格式化函数（避免循环依赖，失败则降级为简单格式）
 try:
-    from crypto_trading_bot import smart_price_format, smart_percentage_format, smart_volume_format
+    from main import smart_price_format, smart_percentage_format, smart_volume_format
 except Exception:
     def smart_price_format(price: float) -> str:
         return f"{price:.4f}"
@@ -579,7 +579,7 @@ class SignalFormatter:
         
         # 获取今日播报次数并更新计数
         try:
-            from crypto_trading_bot import daily_signal_counter
+            from main import daily_signal_counter
             # 增加计数并获取新的计数值
             daily_count = daily_signal_counter.increment_count(symbol)
         except Exception:
@@ -651,7 +651,7 @@ class SignalFormatter:
         
         # 获取今日播报次数并更新计数
         try:
-            from crypto_trading_bot import daily_signal_counter
+            from main import daily_signal_counter
             # 增加计数并获取新的计数值
             daily_count = daily_signal_counter.increment_count(symbol)
         except Exception:
@@ -723,7 +723,7 @@ class SignalFormatter:
         
         # 获取今日播报次数并更新计数
         try:
-            from crypto_trading_bot import daily_signal_counter
+            from main import daily_signal_counter
             # 增加计数并获取新的计数值
             daily_count = daily_signal_counter.increment_count(symbol)
         except Exception:
