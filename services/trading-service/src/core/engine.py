@@ -257,24 +257,6 @@ class Engine:
             if total_time > 120:
                 alert(AlertLevel.WARNING, "计算耗时过长", f"总耗时 {total_time:.1f}s 超过阈值", symbols=len(symbols), rows=total_rows)
     
-    def _build_symbol_data(self, all_results: Dict[str, list]) -> Dict[str, Dict[str, Any]]:
-        """构建按币种聚合的数据结构（保留用于调试）"""
-        symbol_data = {}
-        for indicator_name, records_list in all_results.items():
-            for records in records_list:
-                for r in records:
-                    symbol = r.get("交易对")
-                    interval = r.get("周期")
-                    if not symbol or not interval:
-                        continue
-                    if symbol not in symbol_data:
-                        symbol_data[symbol] = {}
-                    if interval not in symbol_data[symbol]:
-                        symbol_data[symbol][interval] = {}
-                    fields = {k: v for k, v in r.items() if k not in ("交易对", "周期")}
-                    symbol_data[symbol][interval][indicator_name.replace('.py', '')] = fields
-        return symbol_data
-    
     def _write_simple_db(self, all_results: Dict[str, list]):
         """写入 market_data.db - 每个指标一张表，全量覆盖"""
         from ..db.reader import writer as sqlite_writer
