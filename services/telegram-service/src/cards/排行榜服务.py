@@ -14,7 +14,7 @@ import csv
 import logging
 from pathlib import Path
 from typing import Dict, List, Sequence
-from libs.common.utils.路径助手 import 获取数据服务CSV目录
+from utils.paths import 获取数据服务CSV目录
 
 from cards.data_provider import get_ranking_provider, format_symbol
 

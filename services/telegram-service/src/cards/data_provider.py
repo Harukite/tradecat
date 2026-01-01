@@ -15,7 +15,7 @@ import sqlite3
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from libs.common.utils.路径助手 import 获取数据服务CSV目录
+from utils.paths import 获取数据服务CSV目录
 
 
 LOGGER = logging.getLogger(__name__)
