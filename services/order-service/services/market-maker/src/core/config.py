@@ -5,6 +5,16 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional
 
+# 加载 config/.env（market-maker 根目录）
+_SERVICE_ROOT = Path(__file__).parents[2]  # src/core/config.py -> market-maker
+_env_file = _SERVICE_ROOT / "config" / ".env"
+if _env_file.exists():
+    for line in _env_file.read_text().splitlines():
+        line = line.strip()
+        if line and not line.startswith("#") and "=" in line:
+            k, v = line.split("=", 1)
+            os.environ.setdefault(k.strip(), v.strip())
+
 
 @dataclass
 class ExchangeConfig:
