@@ -65,3 +65,4 @@ services/telegram-service/.env
 services/telegram-service/logs/
 services/telegram-service/docs/
 services/telegram-service/data/
+libs/database/db/state/
