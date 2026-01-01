@@ -33,6 +33,7 @@ data_export/
 
 # 屏蔽目录
 backups/
+docs/
 libs/external/
 
 # 临时文件

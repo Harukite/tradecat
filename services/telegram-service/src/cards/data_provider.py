@@ -1,13 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""排行榜数据访问层（支持三种数据库）
+"""排行榜数据访问层
 
-数据源：
-- 旧版(0)：market_data.db（38张指标表）
-- JSON版(1)：indicator.db（按 symbol+interval 聚合的 JSON）
-- 宽表版(2)：indicator_wide.db（单表286列，推荐）
-
-通过 INDICATOR_DB_TYPE 环境变量切换，默认使用宽表版(2)。
+数据源：market_data.db（每个指标一张表）
 """
 
 from __future__ import annotations
@@ -122,371 +117,16 @@ def _period_to_db(period: str) -> str:
     return {"24h": "1d", "1day": "1d"}.get(p, p)
 
 
-# ============================================================
-# 新版数据库适配器 (indicator.db)
-# ============================================================
-class NewIndicatorAdapter:
-    """读取 indicator.db 的适配器"""
-    
-    def __init__(self):
-        self.db_path = Path(__file__).resolve().parent.parent.parent / "data" / "indicator.db"
-        self._conn = None
-    
-    def _connect(self) -> Optional[sqlite3.Connection]:
-        if not self.db_path.exists():
-            LOGGER.warning("indicator.db 不存在: %s", self.db_path)
-            return None
-        try:
-            conn = sqlite3.connect(f"file:{self.db_path}?mode=ro", uri=True)
-            conn.execute("PRAGMA synchronous=OFF")
-            conn.execute("PRAGMA temp_store=MEMORY")
-            return conn
-        except Exception as e:
-            LOGGER.warning("打开 indicator.db 失败: %s", e)
-            return None
-    
-    def fetch_by_interval(self, interval: str, indicator: str) -> List[Dict]:
-        """按周期获取某指标的全部币种数据"""
-        conn = self._connect()
-        if not conn:
-            return []
-        try:
-            db_interval = _period_to_db(interval)
-            cur = conn.execute(
-                "SELECT symbol, data FROM data WHERE interval = ?", 
-                (db_interval,)
-            )
-            results = []
-            indicator_key = indicator.replace(".py", "")
-            for symbol, data_json in cur.fetchall():
-                data = json.loads(data_json)
-                if indicator_key in data:
-                    row = data[indicator_key].copy()
-                    row["交易对"] = symbol
-                    row["周期"] = interval
-                    row["指标"] = indicator_key  # 兼容旧版字段
-                    results.append(row)
-            return results
-        except Exception as e:
-            LOGGER.warning("读取 indicator.db 失败: %s", e)
-            return []
-        finally:
-            conn.close()
-    
-    def fetch_by_symbol(self, symbol: str, interval: str = None) -> Dict[str, Dict]:
-        """按币种获取数据，返回 {interval: {indicator: data}}"""
-        conn = self._connect()
-        if not conn:
-            return {}
-        try:
-            if interval:
-                db_interval = _period_to_db(interval)
-                cur = conn.execute(
-                    "SELECT interval, data FROM data WHERE symbol = ? AND interval = ?",
-                    (symbol.upper(), db_interval)
-                )
-            else:
-                cur = conn.execute(
-                    "SELECT interval, data FROM data WHERE symbol = ?",
-                    (symbol.upper(),)
-                )
-            return {row[0]: json.loads(row[1]) for row in cur.fetchall()}
-        except Exception as e:
-            LOGGER.warning("读取 indicator.db 失败: %s", e)
-            return {}
-        finally:
-            conn.close()
-    
-    def fetch_single(self, symbol: str, interval: str, indicator: str) -> Dict:
-        """获取单个币种单个周期单个指标"""
-        data = self.fetch_by_symbol(symbol, interval)
-        db_interval = _period_to_db(interval)
-        indicator_key = indicator.replace(".py", "")
-        if db_interval in data and indicator_key in data[db_interval]:
-            row = data[db_interval][indicator_key].copy()
-            row["交易对"] = symbol.upper()
-            row["周期"] = interval
-            row["指标"] = indicator_key  # 兼容旧版字段
-            return row
-        return {}
-    
-    def get_all_symbols(self, interval: str = None) -> List[str]:
-        """获取所有币种列表"""
-        conn = self._connect()
-        if not conn:
-            return []
-        try:
-            if interval:
-                db_interval = _period_to_db(interval)
-                cur = conn.execute(
-                    "SELECT DISTINCT symbol FROM data WHERE interval = ?",
-                    (db_interval,)
-                )
-            else:
-                cur = conn.execute("SELECT DISTINCT symbol FROM data")
-            return [row[0] for row in cur.fetchall()]
-        except Exception as e:
-            LOGGER.warning("读取 indicator.db 失败: %s", e)
-            return []
-        finally:
-            conn.close()
-
-
-# 全局新版适配器实例
-_NEW_ADAPTER: Optional[NewIndicatorAdapter] = None
-
-def get_new_adapter() -> NewIndicatorAdapter:
-    global _NEW_ADAPTER
-    if _NEW_ADAPTER is None:
-        _NEW_ADAPTER = NewIndicatorAdapter()
-    return _NEW_ADAPTER
-
 
 # ============================================================
-# 宽表适配器 (indicator_wide.db) - 方案C
-# ============================================================
-
-# 指标名到列名前缀的映射
-_INDICATOR_PREFIX = {
-    "MACD柱状扫描器": "MACD柱状",
-    "KDJ随机指标扫描器": "KDJ随机指标",
-    "ATR波幅扫描器": "ATR波幅",
-    "G，C点扫描器": "G_C点",
-    "OBV能量潮扫描器": "OBV能量潮",
-    "CVD信号排行榜": "CVD信号",
-    "基础数据同步器": "基础数据同步器",
-    "主动买卖比扫描器": "主动买卖比",
-    "期货情绪元数据": "期货情绪元数据",
-    "K线形态扫描器": "K线形态",
-    "趋势线榜单": "趋势线",
-    "全量支撑阻力扫描器": "全量支撑阻力",
-    "VPVR排行生成器": "VPVR",
-    "超级精准趋势扫描器": "超级精准趋势",
-    "布林带扫描器": "布林带",
-    "VWAP离线信号扫描": "VWAP离线信号扫描",
-    "成交量比率扫描器": "成交量比率",
-    "MFI资金流量扫描器": "MFI资金流量",
-    "流动性扫描器": "流动性",
-    "智能RSI扫描器": "智能RSI",
-    "趋势云反转扫描器": "趋势云反转",
-    "大资金操盘扫描器": "大资金操盘",
-    "量能斐波狙击扫描器": "量能斐波狙击",
-    "零延迟趋势扫描器": "零延迟趋势",
-    "量能信号扫描器": "量能信号",
-    "多空信号扫描器": "多空信号",
-    "剥头皮信号扫描器": "剥头皮信号",
-    "谐波信号扫描器": "谐波信号",
-    "期货情绪聚合表": "期货情绪聚合表",
-    "SuperTrend": "SuperTrend",
-    "ADX": "ADX",
-    "CCI": "CCI",
-    "WilliamsR": "WilliamsR",
-    "Donchian": "Donchian",
-    "Keltner": "Keltner",
-    "Ichimoku": "Ichimoku",
-    "数据监控": "数据监控",
-}
-
-
-class WideTableAdapter:
-    """读取 indicator_wide.db 的适配器（方案C）"""
-    
-    def __init__(self):
-        self.db_path = Path(__file__).resolve().parent.parent.parent / "data" / "indicator_wide.db"
-        self._conn = None
-        self._columns = None  # 缓存列名
-    
-    def _connect(self) -> Optional[sqlite3.Connection]:
-        if not self.db_path.exists():
-            LOGGER.warning("indicator_wide.db 不存在: %s", self.db_path)
-            return None
-        try:
-            conn = sqlite3.connect(f"file:{self.db_path}?mode=ro", uri=True)
-            conn.execute("PRAGMA synchronous=OFF")
-            conn.execute("PRAGMA temp_store=MEMORY")
-            conn.execute("PRAGMA mmap_size=134217728")
-            return conn
-        except Exception as e:
-            LOGGER.warning("打开 indicator_wide.db 失败: %s", e)
-            return None
-    
-    def _get_columns(self, conn) -> List[str]:
-        """获取所有列名"""
-        if self._columns is None:
-            self._columns = [row[1] for row in conn.execute("PRAGMA table_info(data)").fetchall()]
-        return self._columns
-    
-    def _get_indicator_prefix(self, indicator: str) -> str:
-        """获取指标对应的列名前缀"""
-        indicator = indicator.replace(".py", "")
-        return _INDICATOR_PREFIX.get(indicator, indicator)
-    
-    def _extract_indicator_fields(self, row_dict: Dict, indicator: str) -> Dict:
-        """从宽表行中提取某个指标的字段"""
-        prefix = self._get_indicator_prefix(indicator) + "_"
-        result = {}
-        for col, value in row_dict.items():
-            if col.startswith(prefix) and value is not None:
-                # 还原原始字段名
-                field = col[len(prefix):]
-                # 还原特殊字符
-                field = field.replace("pct", "%").replace("_USDT_", "（USDT）")
-                result[field] = value
-        return result
-    
-    def fetch_by_interval(self, interval: str, indicator: str) -> List[Dict]:
-        """按周期获取某指标的全部币种数据"""
-        conn = self._connect()
-        if not conn:
-            return []
-        try:
-            db_interval = _period_to_db(interval)
-            columns = self._get_columns(conn)
-            
-            cur = conn.execute("SELECT * FROM data WHERE interval = ?", (db_interval,))
-            results = []
-            indicator_key = indicator.replace(".py", "")
-            
-            for row in cur.fetchall():
-                row_dict = dict(zip(columns, row))
-                fields = self._extract_indicator_fields(row_dict, indicator_key)
-                if fields:
-                    fields["交易对"] = row_dict["symbol"]
-                    fields["周期"] = interval
-                    fields["指标"] = indicator_key
-                    results.append(fields)
-            return results
-        except Exception as e:
-            LOGGER.warning("读取 indicator_wide.db 失败: %s", e)
-            return []
-        finally:
-            conn.close()
-    
-    def fetch_by_symbol(self, symbol: str, interval: str = None) -> Dict[str, Dict]:
-        """按币种获取数据，返回 {interval: {indicator: data}}"""
-        conn = self._connect()
-        if not conn:
-            return {}
-        try:
-            columns = self._get_columns(conn)
-            
-            if interval:
-                db_interval = _period_to_db(interval)
-                cur = conn.execute(
-                    "SELECT * FROM data WHERE symbol = ? AND interval = ?",
-                    (symbol.upper(), db_interval)
-                )
-            else:
-                cur = conn.execute("SELECT * FROM data WHERE symbol = ?", (symbol.upper(),))
-            
-            result = {}
-            for row in cur.fetchall():
-                row_dict = dict(zip(columns, row))
-                intv = row_dict["interval"]
-                result[intv] = {}
-                
-                # 提取每个指标的字段
-                for indicator in _INDICATOR_PREFIX.keys():
-                    fields = self._extract_indicator_fields(row_dict, indicator)
-                    if fields:
-                        result[intv][indicator] = fields
-            
-            return result
-        except Exception as e:
-            LOGGER.warning("读取 indicator_wide.db 失败: %s", e)
-            return {}
-        finally:
-            conn.close()
-    
-    def fetch_single(self, symbol: str, interval: str, indicator: str) -> Dict:
-        """获取单个币种单个周期单个指标"""
-        conn = self._connect()
-        if not conn:
-            return {}
-        try:
-            db_interval = _period_to_db(interval)
-            columns = self._get_columns(conn)
-            
-            cur = conn.execute(
-                "SELECT * FROM data WHERE symbol = ? AND interval = ?",
-                (symbol.upper(), db_interval)
-            )
-            row = cur.fetchone()
-            if not row:
-                return {}
-            
-            row_dict = dict(zip(columns, row))
-            indicator_key = indicator.replace(".py", "")
-            fields = self._extract_indicator_fields(row_dict, indicator_key)
-            if fields:
-                fields["交易对"] = symbol.upper()
-                fields["周期"] = interval
-                fields["指标"] = indicator_key
-            return fields
-        except Exception as e:
-            LOGGER.warning("读取 indicator_wide.db 失败: %s", e)
-            return {}
-        finally:
-            conn.close()
-    
-    def get_all_symbols(self, interval: str = None) -> List[str]:
-        """获取所有币种列表"""
-        conn = self._connect()
-        if not conn:
-            return []
-        try:
-            if interval:
-                db_interval = _period_to_db(interval)
-                cur = conn.execute(
-                    "SELECT DISTINCT symbol FROM data WHERE interval = ?",
-                    (db_interval,)
-                )
-            else:
-                cur = conn.execute("SELECT DISTINCT symbol FROM data")
-            return [row[0] for row in cur.fetchall()]
-        except Exception as e:
-            LOGGER.warning("读取 indicator_wide.db 失败: %s", e)
-            return []
-        finally:
-            conn.close()
-
-
-# 全局宽表适配器实例
-_WIDE_ADAPTER: Optional[WideTableAdapter] = None
-
-def get_wide_adapter() -> WideTableAdapter:
-    global _WIDE_ADAPTER
-    if _WIDE_ADAPTER is None:
-        _WIDE_ADAPTER = WideTableAdapter()
-    return _WIDE_ADAPTER
-
-
-# 数据库类型开关
-# 0 = market_data.db（每个指标一张表）
-import os
-DB_TYPE = int(os.getenv("INDICATOR_DB_TYPE", "0"))
-
-
-# ============================================================
-# 原有 RankingDataProvider（旧版 market_data.db）
+# RankingDataProvider（market_data.db）
 # ============================================================
 class RankingDataProvider:
-    def __init__(self, db_path: Optional[Path] = None, db_type: int = None) -> None:
+    def __init__(self, db_path: Optional[Path] = None) -> None:
         # 优先使用 telegram-service 内部的数据库
         _local_db = Path(__file__).resolve().parent.parent.parent / "data" / "market_data.db"
         self.db_path = db_path or (_local_db if _local_db.exists() else 获取数据服务CSV目录() / "market_data.db")
         self.csv_root = Path(__file__).resolve().parent.parent.parent / "data"
-        
-        # 数据库类型: 0=旧版, 1=JSON版, 2=宽表版
-        self.db_type = db_type if db_type is not None else DB_TYPE
-        
-        # 根据类型选择适配器
-        if self.db_type == 2:
-            self._adapter = get_wide_adapter()
-        elif self.db_type == 1:
-            self._adapter = get_new_adapter()
-        else:
-            self._adapter = None
 
     # ---------------- 内部工具 ----------------
     def _connect(self) -> Optional[sqlite3.Connection]:
@@ -664,12 +304,6 @@ class RankingDataProvider:
 
     def fetch_metric(self, table: str, period: str) -> List[Dict]:
         """通用指标表读取，过滤周期后返回 list[dict]"""
-        # 新版数据库（宽表或JSON）
-        if self._adapter:
-            indicator = self._resolve_table(table)
-            return self._adapter.fetch_by_interval(period, indicator)
-        
-        # 旧版数据库
         rows = self._load_table_period(table, period)
         target_period = _normalize_period_value(period)
         out: List[Dict] = []
@@ -683,9 +317,6 @@ class RankingDataProvider:
 
     def fetch_base_row(self, period: str, symbol: str) -> Dict:
         """获取指定周期+币种的基础数据单行。"""
-        # 新版数据库
-        if self._adapter:
-            return self._adapter.fetch_single(symbol, period, "基础数据同步器.py")
         return self._fetch_single_row("基础数据", period, symbol)
 
     def fetch_row(
@@ -698,13 +329,7 @@ class RankingDataProvider:
         base_fields: Optional[List[str]] = None,
     ) -> Dict:
         """仅取指定表/周期/币种的一行，并合并基础数据字段。"""
-        # 新版数据库
-        if self._adapter:
-            indicator = self._resolve_table(table)
-            row = self._adapter.fetch_single(symbol, period, indicator)
-        else:
-            row = self._fetch_single_row(table, period, symbol)
-        
+        row = self._fetch_single_row(table, period, symbol)
         if not row:
             return {}
         base = self.fetch_base_row(period, symbol) or {}
@@ -831,9 +456,4 @@ __all__ = [
     "RankingDataProvider", 
     "get_ranking_provider", 
     "format_symbol",
-    "NewIndicatorAdapter",
-    "get_new_adapter",
-    "WideTableAdapter",
-    "get_wide_adapter",
-    "DB_TYPE",
 ]
