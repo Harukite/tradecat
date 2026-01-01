@@ -5,9 +5,10 @@ import argparse
 import json
 import subprocess
 import sys
-from libs.common.utils.路径助手 import 获取服务根目录
+from pathlib import Path
 
-PROJECT_ROOT = 获取服务根目录("telegram-service")
+# 直接计算路径：scripts/ai_refactor.py -> telegram-service
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 SRC_DIR = PROJECT_ROOT / "src"
 DOCS_DIR = PROJECT_ROOT / "docs"
 
@@ -20,7 +21,7 @@ def analyze() -> None:
     summary = {
         "project_root": str(PROJECT_ROOT),
         "src_modules": sorted(p.name for p in SRC_DIR.iterdir() if p.is_dir()),
-        "docs_files": sorted(p.name for p in DOCS_DIR.glob("*.md")),
+        "docs_files": sorted(p.name for p in DOCS_DIR.glob("*.md")) if DOCS_DIR.exists() else [],
     }
     print(json.dumps(summary, ensure_ascii=False, indent=2))
 
