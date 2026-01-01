@@ -49,3 +49,6 @@ AGENTS.md
 **/ft_userdir/
 libs/external/
 .history/
+data_export/
+libs/database/csv/downloads/
+libs/database/telegram-cards/
