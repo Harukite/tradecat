@@ -10,11 +10,9 @@
 
 from __future__ import annotations
 
-import csv
 import logging
 from pathlib import Path
 from typing import Dict, List, Sequence
-from utils.paths import 获取数据服务CSV目录
 
 from cards.data_provider import get_ranking_provider, format_symbol
 
@@ -63,7 +61,7 @@ class BaseService:
 class VolumeRankingService(BaseService):
     def __init__(self, handler) -> None:
         super().__init__(handler)
-        # 统一改用新数据访问层（SQLite/CSV），不再依赖旧 Timescale 服务
+        # 统一使用 SQLite 数据访问层
         self.provider = get_ranking_provider()
 
     def render_text(
@@ -78,7 +76,7 @@ class VolumeRankingService(BaseService):
         allowed = VOLUME_SPOT_PERIODS if market_type == "spot" else VOLUME_FUTURES_PERIODS
         period = normalize_period(period, allowed, default="4h")
 
-        # 优先使用新 SQLite/CSV 数据
+        # 使用 SQLite 数据
         try:
             rows = self._load_from_provider(period)
             if rows:
@@ -558,7 +556,6 @@ def build_standard_keyboard(
 class BuySellRatioService(BaseService):
     """主动买卖比排行榜服务，统一渲染格式与按钮布局"""
 
-    CSV_PATH = 获取数据服务CSV目录() / "主动买卖比榜单.csv"
 
     def __init__(self, handler) -> None:
         super().__init__(handler)
@@ -568,8 +565,6 @@ class BuySellRatioService(BaseService):
     def render_text(self, limit: int, period: str, sort_order: str, sort_field: str = "buy_ratio") -> str:
         period = normalize_period(period, DEFAULT_PERIODS, default="1h")
         rows = self._load_from_db(period, sort_order, limit, sort_field)
-        if not rows:
-            rows = self._load_from_csv(period, sort_order, limit, sort_field)
 
         data_rows: List[List[str]] = []
         for idx, row in enumerate(rows, 1):
@@ -639,35 +634,6 @@ class BuySellRatioService(BaseService):
         except Exception as exc:  # pragma: no cover
             self.logger.warning("SQLite 主动买卖比兜底失败: %s", exc)
             return []
-
-    def _load_from_csv(self, period: str, sort_order: str, limit: int, sort_field: str) -> List[Dict]:
-        path = self.CSV_PATH
-        if not path.exists():
-            return []
-        rows: List[Dict] = []
-        try:
-            with path.open("r", encoding="utf-8-sig") as f:
-                reader = csv.DictReader(f)
-                for row in reader:
-                    row_period = (row.get("周期") or row.get("period") or "").strip()
-                    if row_period != period:
-                        continue
-                    symbol = (row.get("symbol") or row.get("币种") or "").strip()
-                    if not symbol:
-                        continue
-                    rows.append({
-                        "symbol": symbol,
-                        "buy_ratio": self._to_float(row, ["主动买卖比", "buy_ratio"]),
-                        "buy_quote": self._to_float(row, ["主动买量", "buy_quote"]),
-                        "sell_quote": self._to_float(row, ["主动卖量", "sell_quote"]),
-                        "quote_volume": self._to_float(row, ["quote_volume", "成交额"]),
-                        "last_close": self._to_float(row, ["最新价格", "last_close", "price"]),
-                    })
-        except Exception as exc:  # pragma: no cover
-            self.logger.warning("读取主动买卖比CSV失败: %s", exc)
-            return []
-
-        return self._sort_rows(rows, sort_field, sort_order)[:limit]
 
     @staticmethod
     def _sort_rows(rows: List[Dict], sort_field: str, sort_order: str) -> List[Dict]:

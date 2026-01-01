@@ -6,12 +6,9 @@
 
 from __future__ import annotations
 
-import csv
 import logging
-from pathlib import Path
 from typing import Dict, List, Tuple
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-from utils.paths import 获取数据服务CSV目录
 
 from cards.base import RankingCard
 from cards.data_provider import get_ranking_provider, format_symbol
@@ -19,7 +16,6 @@ from cards.data_provider import get_ranking_provider, format_symbol
 
 class EMA排行卡片(RankingCard):
     FALLBACK = "🔄 EMA 收敛/发散数据准备中..."
-    CSV_PATH = 获取数据服务CSV目录() / "G，C点扫描器.py.csv"  # 若未来落盘CSV，兜底读取
 
     def __init__(self) -> None:
         super().__init__(
@@ -230,14 +226,9 @@ class EMA排行卡片(RankingCard):
         return InlineKeyboardMarkup(kb)
 
     def _load_rows(self, period: str, sort_order: str, limit: int, sort_field: str, field_state: Dict[str, bool]) -> Tuple[List[List[str]], str]:
-        path = self.CSV_PATH
         items: List[Dict] = []
         try:
-            # 优先 DB：G，C点扫描器.py 表（集中计算器落盘）
             metrics = self.provider.merge_with_base("G，C点扫描器.py", period, base_fields=["价格", "成交额"])
-            if not metrics and path.exists():
-                with path.open("r", encoding="utf-8-sig") as f:
-                    metrics = list(csv.DictReader(f))
             for row in metrics:
                 row_period = (row.get("周期") or row.get("period") or "").strip()
                 if row_period.lower() != period.lower():
@@ -245,7 +236,6 @@ class EMA排行卡片(RankingCard):
                 sym = (row.get("币种") or row.get("symbol") or row.get("交易对") or "").strip().upper()
                 if not sym:
                     continue
-                # 两套字段兼容：DB(EMA*) / CSV(G/C点)
                 items.append({
                     "symbol": sym,
                     "price": self._to_float(row, ["price", "价格", "当前价格", "最新价格"]),

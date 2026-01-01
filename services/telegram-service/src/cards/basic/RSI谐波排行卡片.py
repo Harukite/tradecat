@@ -1,6 +1,6 @@
 """RSI 谐波信号排行榜卡片
 
-数据源：data/csv/谐波信号.csv（排名,币种,周期,强度,价格,方向）。
+数据源：market_data.db 表 谐波信号扫描器.py
 """
 
 from __future__ import annotations

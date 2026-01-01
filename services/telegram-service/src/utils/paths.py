@@ -14,9 +14,4 @@ def 获取数据库目录() -> Path:
     return DATABASE_DIR
 
 
-def 获取数据服务CSV目录() -> Path:
-    """返回 CSV 兜底目录（已废弃，保留兼容）"""
-    return DATABASE_DIR
-
-
-__all__ = ["获取数据库目录", "获取数据服务CSV目录", "SERVICE_ROOT", "PROJECT_ROOT", "DATABASE_DIR"]
+__all__ = ["获取数据库目录", "SERVICE_ROOT", "PROJECT_ROOT", "DATABASE_DIR"]

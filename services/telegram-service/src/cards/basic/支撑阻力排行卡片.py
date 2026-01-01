@@ -1,6 +1,6 @@
 """支撑阻力排行榜卡片
 
-数据源：data/csv/支撑阻力榜单.csv。
+数据源：market_data.db 表 全量支撑阻力扫描器.py
 """
 
 from __future__ import annotations

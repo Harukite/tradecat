@@ -1,6 +1,6 @@
 """CVD 资金流向排行榜卡片
 
-数据源：data/csv/CVD榜单.csv（若缺失则提示），按净流/强度排序。
+数据源：market_data.db 表 CVD信号排行榜.py
 """
 
 from __future__ import annotations
