@@ -7,8 +7,18 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-# 项目根目录
-PROJECT_ROOT = Path(__file__).parent.parent.parent.parent  # tradecat/
+# 服务根目录
+SERVICE_ROOT = Path(__file__).parent.parent  # src/config.py -> data-service
+PROJECT_ROOT = SERVICE_ROOT.parent.parent    # tradecat/
+
+# 加载 config/.env
+_env_file = SERVICE_ROOT / "config" / ".env"
+if _env_file.exists():
+    for line in _env_file.read_text().splitlines():
+        line = line.strip()
+        if line and not line.startswith("#") and "=" in line:
+            k, v = line.split("=", 1)
+            os.environ.setdefault(k.strip(), v.strip())
 
 
 def _int_env(name: str, default: int) -> int:
