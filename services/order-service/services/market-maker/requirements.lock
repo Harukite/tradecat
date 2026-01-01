@@ -1,0 +1,4 @@
+# Locked baseline for reproducible installs (update via pip-compile or pip freeze in venv)
+ccxt==4.0.0
+cryptofeed==2.4.3
+aiohttp==3.9.0

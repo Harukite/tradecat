@@ -1,0 +1,74 @@
+# Order Service
+
+交易执行服务，包含 Avellaneda-Stoikov 做市系统。
+
+## 架构
+
+```
+order-service/
+├── services/
+│   └── market-maker/       # A-S 做市系统
+│       ├── main.py         # 入口
+│       ├── config/         # 配置文件
+│       └── src/
+│           ├── core/       # 引擎/风控/数据流
+│           └── strategies/ # 策略实现
+└── scripts/                # 运维脚本
+```
+
+## Market Maker
+
+基于 Avellaneda-Stoikov 论文的做市系统，面向 Binance USDT-M 合约。
+
+### 核心特性
+
+- WebSocket 全链路（行情 + 用户数据流）
+- 双向持仓模式（hedge_mode）
+- 名义敞口风控
+- 预置市场元数据（零 REST 模式）
+
+### 快速开始
+
+```bash
+cd services/market-maker
+
+# 1. 创建虚拟环境
+python3 -m venv .venv && source .venv/bin/activate
+
+# 2. 安装依赖
+pip install -r requirements.txt
+
+# 3. 配置 API 密钥
+cp config/default.json config/local.json
+# 编辑 config/local.json 填入密钥
+
+# 4. 运行
+python main.py --config config/local.json
+```
+
+### 配置说明
+
+| 参数 | 说明 | 默认值 |
+|------|------|--------|
+| gamma | 风险厌恶系数 | 0.1 |
+| T | 周期（小时） | 0.05 |
+| max_inventory | 最大库存 | 0.01 |
+| order_size | 单笔订单量 | 0.001 |
+| min_spread_bps | 最小价差 | 2 bps |
+
+### 风控参数
+
+| 参数 | 说明 | 默认值 |
+|------|------|--------|
+| per_symbol_limit | 单品种名义上限 | 200 USDT |
+| global_limit | 全局名义上限 | 2000 USDT |
+| flat_threshold | 强平阈值 | 400 USDT |
+
+## 环境变量
+
+无必需环境变量，所有配置通过 JSON 文件管理。
+
+## 依赖
+
+- Python 3.12+
+- ccxt, cryptofeed, aiohttp
