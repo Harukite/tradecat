@@ -123,10 +123,11 @@ def _period_to_db(period: str) -> str:
 # ============================================================
 class RankingDataProvider:
     def __init__(self, db_path: Optional[Path] = None) -> None:
-        # 优先使用 telegram-service 内部的数据库
-        _local_db = Path(__file__).resolve().parent.parent.parent / "data" / "market_data.db"
-        self.db_path = db_path or (_local_db if _local_db.exists() else 获取数据服务CSV目录() / "market_data.db")
-        self.csv_root = Path(__file__).resolve().parent.parent.parent / "data"
+        # 数据库位置：libs/database/services/telegram-service/market_data.db
+        _project_root = Path(__file__).resolve().parent.parent.parent.parent.parent  # tradecat/
+        _default_db = _project_root / "libs" / "database" / "services" / "telegram-service" / "market_data.db"
+        self.db_path = db_path or _default_db
+        self.csv_root = _project_root / "libs" / "database" / "csv"
 
     # ---------------- 内部工具 ----------------
     def _connect(self) -> Optional[sqlite3.Connection]:

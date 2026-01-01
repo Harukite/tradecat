@@ -41,7 +41,7 @@ class Config:
     # SQLite（写入指标结果）
     sqlite_path: Path = field(default_factory=lambda: Path(os.getenv(
         "INDICATOR_SQLITE_PATH",
-        str(PROJECT_ROOT / "services/telegram-service/data/market_data.db")
+        str(PROJECT_ROOT / "libs/database/services/telegram-service/market_data.db")
     )))
     
     # 计算参数

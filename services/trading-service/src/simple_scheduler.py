@@ -24,8 +24,9 @@ from psycopg.rows import dict_row
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 TRADING_SERVICE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PROJECT_ROOT = os.path.dirname(os.path.dirname(TRADING_SERVICE_DIR))  # tradecat/
 DB_URL = os.environ.get("DATABASE_URL", "postgresql://opentd:OpenTD_pass@localhost:5433/market_data")
-SQLITE_PATH = os.environ.get("INDICATOR_SQLITE_PATH", os.path.join(os.path.dirname(TRADING_SERVICE_DIR), "telegram-service/data/market_data.db"))
+SQLITE_PATH = os.environ.get("INDICATOR_SQLITE_PATH", os.path.join(PROJECT_ROOT, "libs/database/services/telegram-service/market_data.db"))
 
 INTERVALS = ["1m", "5m", "15m", "1h", "4h", "1d", "1w"]
 
