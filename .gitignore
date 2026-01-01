@@ -48,3 +48,4 @@ AGENTS.md
 !**/config.example.json
 **/ft_userdir/
 libs/external/
+.history/
