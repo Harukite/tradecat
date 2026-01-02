@@ -3,6 +3,7 @@
 监控 SQLite 表变化，根据规则触发信号
 """
 
+import os
 import sqlite3
 import time
 import logging
@@ -14,7 +15,13 @@ from .rules import SIGNAL_RULES, TIMEFRAMES, SIGNAL_COOLDOWN, MIN_VOLUME
 
 logger = logging.getLogger(__name__)
 
-DB_PATH = "/home/lenovo/.projects/tradecat/libs/database/services/telegram-service/market_data.db"
+# 数据库路径（优先环境变量，否则使用相对路径）
+_SIGNALS_DIR = os.path.dirname(os.path.abspath(__file__))
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(_SIGNALS_DIR))))
+DB_PATH = os.environ.get(
+    "INDICATOR_SQLITE_PATH",
+    os.path.join(_PROJECT_ROOT, "libs/database/services/telegram-service/market_data.db")
+)
 
 
 @dataclass

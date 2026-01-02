@@ -4,12 +4,16 @@
 
 set -e
 
+# 自动获取项目根目录
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+
 DB_HOST="localhost"
 DB_PORT="5433"
 DB_USER="postgres"
 DB_PASS="postgres"
 DB_NAME="market_data"
-OUTPUT_DIR="/home/lenovo/.projects/tradecat/backups/timescaledb"
+OUTPUT_DIR="${PROJECT_ROOT}/backups/timescaledb"
 LOG_FILE="$OUTPUT_DIR/export.log"
 DATE=$(date +%Y%m%d_%H%M%S)
 
