@@ -82,7 +82,7 @@ def _detect_talib(df: pd.DataFrame) -> dict:
             val = float(fn(o, h, l, c)[-1])
             if val != 0:
                 results[fname] = val / 100.0
-        except:
+        except Exception:
             pass
     return results
 
@@ -116,7 +116,7 @@ def _detect_tradingpatterns(ohlcv: pd.DataFrame) -> dict:
                             if last and last in patterns:
                                 key = last.lower().replace(" ", "_")
                                 results[key] = patterns[last]
-            except:
+            except Exception:
                 pass
     except ImportError:
         pass
@@ -159,7 +159,7 @@ def _detect_patternpy(df: pd.DataFrame) -> dict:
                                 if pat in patterns:
                                     key, val = patterns[pat]
                                     results[key] = val
-            except:
+            except Exception:
                 pass
     except ImportError:
         pass
@@ -184,7 +184,7 @@ def _detect_trendln(df: pd.DataFrame) -> dict:
                     results["horizontal_channel"] = 0.3
     except ImportError:
         pass
-    except:
+    except Exception:
         pass
     return results
 

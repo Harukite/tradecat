@@ -29,7 +29,7 @@ def get_metrics_times(symbol: str, limit: int = 240, interval: str = "5m") -> Li
                 """, (symbol, limit))
                 rows = cur.fetchall()
                 return [r[0].replace(tzinfo=timezone.utc) for r in reversed(rows) if r[0]]
-    except:
+    except Exception:
         return []
 
 

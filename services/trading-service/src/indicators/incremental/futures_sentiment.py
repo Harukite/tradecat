@@ -89,7 +89,7 @@ class FuturesSentiment(Indicator):
         def f(v):
             try:
                 return float(v) if v is not None else None
-            except:
+            except Exception:
                 return None
         
         ts = metrics.get("datetime")

@@ -9,7 +9,7 @@ def safe_float(v, default=0):
         return default
     try:
         return float(v)
-    except:
+    except Exception:
         return default
 
 
@@ -18,7 +18,7 @@ def safe_int(v, default=0):
         return default
     try:
         return int(v)
-    except:
+    except Exception:
         return default
 
 
