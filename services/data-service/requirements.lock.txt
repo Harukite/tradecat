@@ -1,0 +1,7 @@
+aiohttp==3.13.2
+ccxt==4.5.30
+cryptofeed==2.4.1
+psycopg==3.3.2
+psycopg-binary==3.3.2
+psycopg-pool==3.3.0
+requests==2.32.5
