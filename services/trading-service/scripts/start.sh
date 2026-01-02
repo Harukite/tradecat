@@ -69,17 +69,24 @@ validate_symbols() {
 }
 validate_symbols
 
-# 代理自检（同时检测 HTTP_PROXY 和 HTTPS_PROXY）
+# 代理自检（重试3次，防止网络抖动误判）
 check_proxy() {
     local proxy="${HTTP_PROXY:-${HTTPS_PROXY:-}}"
     [ -z "$proxy" ] && return 0
     
-    if curl -s --max-time 3 --proxy "$proxy" https://api.binance.com/api/v3/ping >/dev/null 2>&1; then
-        echo "✓ 代理可用: $proxy"
-    else
-        echo "⚠️  代理不可用，已禁用: $proxy"
-        unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy
-    fi
+    local retries=3
+    local i=0
+    while [ $i -lt $retries ]; do
+        if curl -s --max-time 3 --proxy "$proxy" https://api.binance.com/api/v3/ping >/dev/null 2>&1; then
+            echo "✓ 代理可用: $proxy"
+            return 0
+        fi
+        ((i++))
+        [ $i -lt $retries ] && sleep 1
+    done
+    
+    echo "⚠️  代理不可用（重试${retries}次失败），已禁用: $proxy"
+    unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy
 }
 check_proxy
 
