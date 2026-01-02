@@ -34,50 +34,20 @@ def get_client(exchange: str = "binance") -> ccxt.Exchange:
 
 
 # ========== 币种管理配置 ==========
-def _parse_list(val: str) -> List[str]:
-    """解析逗号分隔的列表"""
-    return [s.strip().upper() for s in val.split(",") if s.strip()]
-
-def _load_symbol_groups() -> dict:
-    """从环境变量加载所有分组"""
-    groups = {}
-    for key, val in os.environ.items():
-        if key.startswith("SYMBOLS_GROUP_") and val:
-            name = key[14:].lower()  # SYMBOLS_GROUP_main -> main
-            groups[name] = _parse_list(val)
-    return groups
-
-def _get_configured_symbols() -> List[str]:
-    """根据配置获取币种列表"""
-    groups_str = os.getenv("SYMBOLS_GROUPS", "auto")
-    extra = _parse_list(os.getenv("SYMBOLS_EXTRA", ""))
-    exclude = set(_parse_list(os.getenv("SYMBOLS_EXCLUDE", "")))
-    
-    selected_groups = [g.strip().lower() for g in groups_str.split(",") if g.strip()]
-    
-    # 特殊分组返回 None，让调用方处理
-    if "all" in selected_groups or "auto" in selected_groups:
-        return None  # 返回 None 表示使用全部/自动
-    
-    # 加载自定义分组
-    all_groups = _load_symbol_groups()
-    symbols = set()
-    for g in selected_groups:
-        if g in all_groups:
-            symbols.update(all_groups[g])
-    
-    # 添加额外 + 排除
-    symbols.update(extra)
-    symbols -= exclude
-    
-    return sorted(symbols) if symbols else None
+# 使用共享模块
+import sys
+from pathlib import Path
+_libs_path = str(Path(__file__).parents[4] / "libs")
+if _libs_path not in sys.path:
+    sys.path.insert(0, _libs_path)
+from common.symbols import get_configured_symbols
 
 
 def load_symbols(exchange: str = "binance") -> List[str]:
     key = f"{exchange}_usdt"
     if key not in _symbols:
         # 先检查是否有配置的币种
-        configured = _get_configured_symbols()
+        configured = get_configured_symbols()
         if configured:
             _symbols[key] = configured
             logger.info("使用配置币种 %d 个", len(_symbols[key]))
