@@ -12,6 +12,7 @@ CODE_OF_CONDUCT.md
 OPTIMIZATION_TODO.md
 TODO.md
 SETUP_PROMPT.md
+MARKETING.md
 
 # ====================
 # Python
@@ -95,3 +96,4 @@ services/*/config/.env
 *.db-shm
 *.db-wal
 *.db-journal
+MARKETING.md
