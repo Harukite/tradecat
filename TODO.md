@@ -30,10 +30,10 @@
   - `COMPUTE_BACKEND` 支持 thread/process/hybrid 三种模式
   - hybrid 模式: 小批量(<50)用线程，大批量用进程
 
-- [ ] 批量拉 K 线/批量算指标（M-L）
-  - 抓取：同周期多币种批次请求（如 20/批）或用交易所批量端点；写 TimescaleDB 用多值 insert/COPY。
-  - 计算：同周期多 symbol 拼成 DataFrame/ndarray 向量化计算，再拆写结果；单币兜底保留，监控批量失败率。
-  - 验证：对比前后吞吐/带宽/CPU 占用，回归数据一致性。
+- [x] 批量拉 K 线/批量算指标（M-L）✅
+  - K线读取: 单SQL批量查询所有币种（窗口函数），多周期并行
+  - SQLite写入: `executemany` 批量插入（比 to_sql 快 3-5 倍）
+  - 单事务写入多表，减少 commit 开销
 
 - [ ] TimescaleDB 压缩策略（M-L）
   - 启用压缩：`ALTER TABLE ... SET (timescaledb.compress)`；创建 policy：热数据 30 天不压缩，30 天后自动压缩；可选 180 天自动删除/退役。
