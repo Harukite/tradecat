@@ -739,9 +739,18 @@ class GapFiller:
 
 
 # ==================== 主入口 ====================
+def get_backfill_config():
+    """从环境变量获取补齐配置"""
+    import os
+    mode = os.environ.get("BACKFILL_MODE", "days").lower()
+    days = int(os.environ.get("BACKFILL_DAYS", "30"))
+    on_start = os.environ.get("BACKFILL_ON_START", "false").lower() in ("true", "1", "yes")
+    return mode, days, on_start
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="数据补齐系统")
-    parser.add_argument("--lookback", type=int, default=10, help="回溯天数")
+    parser.add_argument("--lookback", type=int, help="回溯天数（覆盖env配置）")
     parser.add_argument("--symbols", type=str, help="交易对列表(逗号分隔)")
     parser.add_argument("--workers", type=int, default=2, help="下载线程数")
     parser.add_argument("--threshold", type=float, default=0.95, help="完整度阈值")
@@ -753,15 +762,31 @@ def main() -> None:
     
     logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
     
+    # 从环境变量获取配置
+    mode, env_days, _ = get_backfill_config()
+    
+    # 确定回溯天数
+    if args.lookback:
+        lookback = args.lookback
+    elif mode == "all":
+        lookback = 3650  # 约10年
+    elif mode == "none":
+        logger.info("BACKFILL_MODE=none，跳过补齐")
+        return
+    else:
+        lookback = env_days
+    
+    logger.info("补齐模式: %s, 回溯: %d 天", mode, lookback)
+    
     symbols = args.symbols.split(",") if args.symbols else None
-    bf = DataBackfiller(args.lookback, args.workers, args.threshold)
+    bf = DataBackfiller(lookback, args.workers, args.threshold)
     
     try:
         if args.scan_only:
             # 仅扫描
             symbols = symbols or load_symbols(settings.ccxt_exchange)
             end = date.today() - timedelta(days=1)
-            start = end - timedelta(days=args.lookback)
+            start = end - timedelta(days=lookback)
             
             if args.klines or args.all or not args.metrics:
                 gaps = bf._scanner.scan_klines(symbols, start, end)
