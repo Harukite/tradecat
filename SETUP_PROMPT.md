@@ -166,7 +166,8 @@ EOF
 # trading-service
 cat > services/trading-service/config/.env << 'EOF'
 DATABASE_URL=postgresql://opentd:OpenTD_pass@localhost:5433/market_data
-INDICATOR_SQLITE_PATH=/home/lenovo/.projects/tradecat/libs/database/services/telegram-service/market_data.db
+# INDICATOR_SQLITE_PATH 留空则自动使用相对路径
+INDICATOR_SQLITE_PATH=
 EOF
 
 # telegram-service（需要用户填写 Bot Token）
@@ -643,7 +644,8 @@ vim services/trading-service/config/.env
 
 ```ini
 DATABASE_URL=postgresql://opentd:OpenTD_pass@localhost:5433/market_data
-INDICATOR_SQLITE_PATH=/home/lenovo/.projects/tradecat/libs/database/services/telegram-service/market_data.db
+# INDICATOR_SQLITE_PATH 留空则自动使用相对路径
+INDICATOR_SQLITE_PATH=
 ```
 
 ```bash
@@ -936,7 +938,7 @@ exit
 crontab -e
 
 # 添加以下行
-@reboot cd /home/lenovo/.projects/tradecat && ./scripts/start.sh daemon >> /home/lenovo/.projects/tradecat/logs/cron.log 2>&1
+@reboot cd $HOME/.projects/tradecat && ./scripts/start.sh daemon >> $HOME/.projects/tradecat/logs/cron.log 2>&1
 ```
 
 ### B. 日志轮转（可选）
@@ -946,7 +948,7 @@ crontab -e
 ```bash
 # 创建 logrotate 配置
 sudo tee /etc/logrotate.d/tradecat << 'EOF'
-/home/lenovo/.projects/tradecat/services/*/logs/*.log {
+$HOME/.projects/tradecat/services/*/logs/*.log {
     daily
     rotate 7
     compress
@@ -969,22 +971,27 @@ EOF
 ### D. 目录结构
 
 ```
-/home/lenovo/.projects/tradecat/
+$HOME/.projects/tradecat/
 ├── services/
 │   ├── data-service/       # 数据采集
 │   ├── trading-service/    # 指标计算
 │   ├── telegram-service/   # Telegram Bot
 │   └── order-service/      # 交易执行
 ├── libs/
+│   ├── common/             # 共享工具库
+│   │   └── proxy_manager.py
 │   └── database/           # SQLite 数据
 │       └── services/telegram-service/
 │           └── market_data.db
+├── config/
+│   ├── .env.example        # 全局配置模板
+│   └── logrotate.conf      # 日志轮转配置
 ├── scripts/
 │   ├── init.sh             # 初始化
 │   ├── start.sh            # 启动/守护
-│   └── verify.sh           # 验证
-├── run/                    # PID 文件
-├── logs/                   # 全局日志
+│   ├── verify.sh           # 验证
+│   ├── export_timescaledb.sh  # 数据导出
+│   └── timescaledb_compression.sh  # 压缩管理
 ├── backups/                # 数据备份
 ├── README.md
 ├── AGENTS.md

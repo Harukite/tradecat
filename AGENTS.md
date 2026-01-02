@@ -152,8 +152,9 @@ sqlite3 libs/database/services/telegram-service/market_data.db
 
 1. 添加依赖前检查是否已存在
 2. 添加到对应服务的 `requirements.txt`
-3. 如需系统库（如 TA-Lib），在 README 中说明安装方法
-4. 禁止添加未经验证的依赖
+3. 运行 `pip freeze | grep <package>` 更新 `requirements.lock.txt`
+4. 如需系统库（如 TA-Lib），在 README 中说明安装方法
+5. 禁止添加未经验证的依赖
 
 ### 4.4 兼容性要求
 
@@ -212,7 +213,8 @@ tradecat/
 │   │   │   └── config.py
 │   │   ├── config/.env.example
 │   │   ├── scripts/start.sh
-│   │   └── requirements.txt
+│   │   ├── requirements.txt
+│   │   └── requirements.lock.txt  # 依赖版本锁定
 │   │
 │   ├── trading-service/        # 指标计算服务
 │   │   ├── src/
@@ -221,35 +223,46 @@ tradecat/
 │   │   │   └── simple_scheduler.py
 │   │   ├── config/.env.example
 │   │   ├── scripts/start.sh
-│   │   └── requirements.txt
+│   │   ├── requirements.txt
+│   │   └── requirements.lock.txt
 │   │
 │   ├── telegram-service/       # Telegram Bot
 │   │   ├── src/
 │   │   │   ├── cards/          # 排行榜卡片
+│   │   │   ├── signals/        # 信号检测引擎
 │   │   │   ├── bot/app.py      # Bot 主程序
 │   │   │   └── main.py
 │   │   ├── config/.env.example
-│   │   └── requirements.txt
+│   │   ├── requirements.txt
+│   │   └── requirements.lock.txt
 │   │
 │   └── order-service/          # 交易执行服务
 │       ├── src/
 │       │   └── market-maker/   # A-S 做市系统
 │       ├── config/.env.example
-│       └── requirements.txt
+│       ├── requirements.txt
+│       └── requirements.lock.txt
 │
 ├── libs/
 │   ├── database/
 │   │   └── services/telegram-service/
 │   │       └── market_data.db  # SQLite 指标数据
-│   └── common/utils/           # 共享工具
+│   └── common/                 # 共享工具库
+│       └── proxy_manager.py    # 代理管理器（运行时重试+冷却）
+│
+├── config/
+│   ├── .env.example            # 全局配置模板
+│   └── logrotate.conf          # 日志轮转配置
 │
 ├── scripts/
 │   ├── init.sh                 # 初始化脚本
 │   ├── start.sh                # 统一启动/守护脚本
 │   ├── verify.sh               # 验证脚本
-│   └── export_timescaledb.sh   # 数据导出
+│   ├── export_timescaledb.sh   # 数据导出
+│   └── timescaledb_compression.sh  # 压缩管理
 │
 ├── install.sh                  # 一键安装
+├── Makefile                    # 常用命令
 └── README.md                   # 项目文档
 ```
 
@@ -268,8 +281,10 @@ tradecat/
 |:---|:---|:---|
 | 指标计算引擎 | `trading-service/src/core/engine.py` | 批量计算指标 |
 | K线形态检测 | `trading-service/src/indicators/batch/k_pattern.py` | TA-Lib + patternpy |
-| 数据提供者 | `telegram-service/src/cards/data_provider.py` | 读取 SQLite 数据 |
+| 数据提供者 | `telegram-service/src/cards/data_provider.py` | 读取 SQLite 数据（连接池） |
 | 排行榜服务 | `telegram-service/src/cards/排行榜服务.py` | 生成排行榜 |
+| 信号引擎 | `telegram-service/src/signals/engine.py` | 信号检测与触发 |
+| 代理管理器 | `libs/common/proxy_manager.py` | 运行时代理重试+冷却 |
 
 ---
 
@@ -426,17 +441,21 @@ docs: 更新 README 快速开始指南
 | 变量 | 说明 | 默认值 |
 |:---|:---|:---|
 | `DATABASE_URL` | TimescaleDB 连接串 | - |
-| `INDICATOR_SQLITE_PATH` | SQLite 输出路径 | - |
+| `INDICATOR_SQLITE_PATH` | SQLite 输出路径 | 自动使用相对路径 |
 | `MAX_WORKERS` | 计算线程数 | 4 |
+| `COMPUTE_BACKEND` | 计算后端 (thread/process/hybrid) | thread |
+| `MAX_IO_WORKERS` | IO 任务线程数 | 8 |
+| `MAX_CPU_WORKERS` | CPU 任务进程数 | 4 |
 
 ### 10.3 telegram-service
 
 | 变量 | 说明 | 默认值 |
 |:---|:---|:---|
-| `TELEGRAM_BOT_TOKEN` | Bot Token | - |
+| `BOT_TOKEN` | Telegram Bot Token | - |
 | `DATABASE_URL` | TimescaleDB 连接串 | - |
 | `HTTP_PROXY` | HTTP 代理 | - |
 | `BINANCE_API_DISABLED` | 禁用 Binance API | 1 |
+| `BLOCKED_SYMBOLS` | 屏蔽币种（逗号分隔） | BNXUSDT,ALPACAUSDT |
 
 ---
 

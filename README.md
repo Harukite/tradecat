@@ -495,7 +495,8 @@ tradecat/
 │   │   │   └── config.py
 │   │   ├── 📂 config/
 │   │   ├── 📂 scripts/
-│   │   └── requirements.txt
+│   │   ├── requirements.txt
+│   │   └── requirements.lock.txt   # 依赖版本锁定
 │   │
 │   ├── 📂 trading-service/         # 指标计算服务
 │   │   ├── 📂 src/
@@ -504,42 +505,50 @@ tradecat/
 │   │   │   └── simple_scheduler.py
 │   │   ├── 📂 config/
 │   │   ├── 📂 scripts/
-│   │   └── requirements.txt
+│   │   ├── requirements.txt
+│   │   └── requirements.lock.txt
 │   │
 │   ├── 📂 telegram-service/        # Telegram Bot
 │   │   ├── 📂 src/
 │   │   │   ├── 📂 cards/           # 排行榜卡片
+│   │   │   ├── 📂 signals/         # 信号检测引擎
 │   │   │   ├── 📂 bot/             # Bot 主程序
 │   │   │   └── main.py
 │   │   ├── 📂 config/
-│   │   └── requirements.txt
+│   │   ├── requirements.txt
+│   │   └── requirements.lock.txt
 │   │
 │   └── 📂 order-service/           # 交易执行服务
 │       ├── 📂 src/
 │       │   └── 📂 market-maker/    # A-S 做市系统
 │       ├── 📂 config/
-│       └── requirements.txt
+│       ├── requirements.txt
+│       └── requirements.lock.txt
 │
 ├── 📂 libs/                        # 共享库
 │   ├── 📂 database/                # 数据库文件
 │   │   └── 📂 services/telegram-service/
 │   │       └── market_data.db      # SQLite 指标数据
 │   └── 📂 common/                  # 共享工具
+│       └── proxy_manager.py        # 代理管理器
+│
+├── 📂 config/                      # 全局配置
+│   ├── .env.example                # 配置模板
+│   └── logrotate.conf              # 日志轮转
 │
 ├── 📂 scripts/                     # 全局脚本
 │   ├── init.sh                     # 初始化脚本
 │   ├── start.sh                    # 统一启动/守护脚本
 │   ├── verify.sh                   # 验证脚本
-│   └── export_timescaledb.sh       # 数据导出
+│   ├── export_timescaledb.sh       # 数据导出
+│   └── timescaledb_compression.sh  # 压缩管理
 │
 ├── 📂 backups/                     # 备份目录
 │   └── 📂 timescaledb/             # 数据库备份
 │
-├── 📂 docs/                        # 文档目录
-│   └── index.md
-│
 ├── README.md                       # 项目说明
 ├── AGENTS.md                       # AI Agent 指南
+├── Makefile                        # 常用命令
 └── CONTRIBUTING.md                 # 贡献指南
 ```
 
