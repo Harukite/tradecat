@@ -18,17 +18,19 @@ LOGGER = logging.getLogger(__name__)
 
 
 def _parse_timestamp(ts_str: str) -> datetime:
-    """解析时间戳字符串为 datetime，支持多种格式"""
+    """解析时间戳字符串为 datetime，支持多种格式（统一为无时区）"""
     if not ts_str:
         return datetime.min
     ts_str = ts_str.strip()
     # 处理 Z 后缀
     if ts_str.endswith('Z'):
-        ts_str = ts_str[:-1] + '+00:00'
+        ts_str = ts_str[:-1]
+    # 移除时区信息（统一为 naive datetime）
+    if '+' in ts_str:
+        ts_str = ts_str.split('+')[0]
     try:
         return datetime.fromisoformat(ts_str)
     except ValueError:
-        # 尝试无时区格式
         for fmt in ('%Y-%m-%d %H:%M:%S', '%Y-%m-%dT%H:%M:%S', '%Y-%m-%d'):
             try:
                 return datetime.strptime(ts_str, fmt)
@@ -125,20 +127,34 @@ def _period_to_db(period: str) -> str:
 
 
 # ============================================================
-# RankingDataProvider（market_data.db）
+# SQLite 连接池（只读，线程安全）
 # ============================================================
-class RankingDataProvider:
-    def __init__(self, db_path: Optional[Path] = None) -> None:
-        _project_root = Path(__file__).resolve().parent.parent.parent.parent.parent
-        _default_db = _project_root / "libs" / "database" / "services" / "telegram-service" / "market_data.db"
-        self.db_path = db_path or _default_db
+import threading
+from queue import Queue, Empty
 
-    def _connect(self) -> Optional[sqlite3.Connection]:
+class _SQLitePool:
+    """简单的 SQLite 只读连接池"""
+    
+    def __init__(self, db_path: Path, pool_size: int = 3):
+        self.db_path = db_path
+        self.pool_size = pool_size
+        self._pool: Queue = Queue(maxsize=pool_size)
+        self._lock = threading.Lock()
+        self._initialized = False
+    
+    def _create_conn(self) -> Optional[sqlite3.Connection]:
+        """创建新连接"""
         if not self.db_path.exists():
             LOGGER.error("market_data.db 不存在: %s", self.db_path)
             return None
         try:
-            conn = sqlite3.connect(f"file:{self.db_path}?mode=ro", uri=True)
+            conn = sqlite3.connect(
+                f"file:{self.db_path}?mode=ro",
+                uri=True,
+                check_same_thread=False,
+                timeout=10.0
+            )
+            conn.row_factory = sqlite3.Row
             for pragma in ("synchronous=OFF", "temp_store=MEMORY", "mmap_size=134217728"):
                 try:
                     conn.execute(f"PRAGMA {pragma};")
@@ -146,37 +162,114 @@ class RankingDataProvider:
                     pass
             return conn
         except Exception as exc:
-            LOGGER.error("打开 SQLite 失败: %s", exc)
+            LOGGER.error("创建 SQLite 连接失败: %s", exc)
             return None
+    
+    def get(self) -> Optional[sqlite3.Connection]:
+        """获取连接（优先从池中取，否则新建）"""
+        # 尝试从池中获取
+        try:
+            conn = self._pool.get_nowait()
+            # 验证连接有效
+            try:
+                conn.execute("SELECT 1")
+                return conn
+            except Exception:
+                # 连接失效，创建新的
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+        except Empty:
+            pass
+        
+        # 创建新连接
+        return self._create_conn()
+    
+    def put(self, conn: Optional[sqlite3.Connection]) -> None:
+        """归还连接到池中"""
+        if conn is None:
+            return
+        try:
+            # 池未满则放回，否则关闭
+            self._pool.put_nowait(conn)
+        except Exception:
+            try:
+                conn.close()
+            except Exception:
+                pass
+    
+    def close_all(self) -> None:
+        """关闭所有连接"""
+        while True:
+            try:
+                conn = self._pool.get_nowait()
+                conn.close()
+            except Empty:
+                break
+            except Exception:
+                pass
+
+
+# 全局连接池实例（延迟初始化）
+_global_pool: Optional[_SQLitePool] = None
+_pool_lock = threading.Lock()
+
+def _get_pool(db_path: Path) -> _SQLitePool:
+    """获取或创建全局连接池"""
+    global _global_pool
+    with _pool_lock:
+        if _global_pool is None or _global_pool.db_path != db_path:
+            if _global_pool is not None:
+                _global_pool.close_all()
+            _global_pool = _SQLitePool(db_path, pool_size=3)
+        return _global_pool
+
+
+# ============================================================
+# RankingDataProvider（market_data.db）
+# ============================================================
+class RankingDataProvider:
+    def __init__(self, db_path: Optional[Path] = None) -> None:
+        _project_root = Path(__file__).resolve().parent.parent.parent.parent.parent
+        _default_db = _project_root / "libs" / "database" / "services" / "telegram-service" / "market_data.db"
+        self.db_path = db_path or _default_db
+        self._pool = _get_pool(self.db_path)
+
+    def _get_conn(self) -> Optional[sqlite3.Connection]:
+        """从连接池获取连接"""
+        return self._pool.get()
+    
+    def _return_conn(self, conn: Optional[sqlite3.Connection]) -> None:
+        """归还连接到池"""
+        self._pool.put(conn)
 
     def _resolve_table(self, name: str) -> str:
         return TABLE_NAME_MAP.get(name, name)
 
     def _load_table(self, table: str) -> List[sqlite3.Row]:
         table = self._resolve_table(table)
-        conn = self._connect()
+        conn = self._get_conn()
         if conn is None:
             return []
-        conn.row_factory = sqlite3.Row
-        cur = conn.cursor()
         try:
+            cur = conn.cursor()
             cur.execute(f"SELECT * FROM '{table}'")
             return cur.fetchall()
         except Exception as exc:
             LOGGER.warning("读取表 %s 失败: %s", table, exc)
             return []
         finally:
-            conn.close()
+            self._return_conn(conn)
 
     def _load_table_period(self, table: str, period: str) -> List[sqlite3.Row]:
         """按周期读取表"""
         table = self._resolve_table(table)
-        conn = self._connect()
+        conn = self._get_conn()
         if conn is None:
             return []
-        conn.row_factory = sqlite3.Row
-        cur = conn.cursor()
         try:
+            cur = conn.cursor()
             cur.execute(f"PRAGMA table_info('{table}')")
             cols = [row[1] for row in cur.fetchall()]
             period_cols = [c for c in cols if c in ("周期", "period", "PERIOD")]
@@ -194,20 +287,19 @@ class RankingDataProvider:
             LOGGER.warning("读取表 %s 失败: %s", table, exc)
             return []
         finally:
-            conn.close()
+            self._return_conn(conn)
 
     def _fetch_single_row(self, table: str, period: str, symbol: str) -> Dict:
         """按周期+交易对取一行"""
         table = self._resolve_table(table)
-        conn = self._connect()
+        conn = self._get_conn()
         if conn is None:
             return {}
-        conn.row_factory = sqlite3.Row
-        cur = conn.cursor()
-        norm_p = _normalize_period_value(period)
-        sym_full = symbol.upper()
-        sym_with_usdt = sym_full + "USDT"
         try:
+            cur = conn.cursor()
+            norm_p = _normalize_period_value(period)
+            sym_full = symbol.upper()
+            sym_with_usdt = sym_full + "USDT"
             cur.execute(f"PRAGMA table_info('{table}')")
             cols = [row[1] for row in cur.fetchall()]
             period_cols = [c for c in cols if c.lower() in ("周期", "period", "interval")]
@@ -242,7 +334,7 @@ class RankingDataProvider:
             LOGGER.warning("读取表 %s 失败: %s", table, exc)
             return {}
         finally:
-            conn.close()
+            self._return_conn(conn)
 
     # ---------------- 公共读取 ----------------
     def fetch_base(self, period: str) -> Dict[str, Dict]:

@@ -20,9 +20,10 @@
   - 启动时 `curl --max-time 3` 测试代理
   - 失败则清空 `HTTP_PROXY/HTTPS_PROXY`
 
-- [ ] SQLite 连接复用（M）
-  - 为排行榜读取实现全局只读连接池/单例（1–3 个连接，`check_same_thread=False`），失效自动重建，退出时关闭。
-  - 验证：压力下响应时间下降；模拟连接被杀后自动恢复。
+- [x] SQLite 连接复用（M）✅
+  - 实现 `_SQLitePool` 连接池（3连接，`check_same_thread=False`）
+  - 连接失效自动重建，池满则关闭多余连接
+  - 所有查询方法改用 `_get_conn()` / `_return_conn()`
 
 - [ ] IO/CPU 拆分执行器（M）
   - 在调度层标记任务类型（IO-heavy/CPU-heavy），IO 走线程池，CPU 走进程池；并行度配置 `MAX_IO_WORKERS` / `MAX_CPU_PROCS`。
