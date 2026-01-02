@@ -81,5 +81,5 @@ class RiskManager:
                 self._alerts_path.chmod(0o600)
             except Exception:
                 pass
-        except:
+        except Exception:
             pass
