@@ -4,6 +4,12 @@
 .env
 .env.*
 !.env.example
+AUDIT_REPORT.md
+CODE_LOCATIONS.md
+CODE_OF_CONDUCT.md
+OPTIMIZATION_TODO.md
+TODO.md
+SETUP_PROMPT.md
 
 # ====================
 # Python
@@ -28,14 +34,7 @@ pids/
 *.log
 cache/
 *.cache
-
-# ====================
-# 数据库
-# ====================
 *.db
-*.db-shm
-*.db-wal
-*.db-journal
 
 # ====================
 # IDE
@@ -43,7 +42,6 @@ cache/
 .idea/
 .vscode/
 *.swp
-.history/
 
 # ====================
 # 备份与导出
@@ -53,6 +51,7 @@ exports/
 data_export/
 *.zst
 *.dump
+.history/
 
 # ====================
 # 守护进程
@@ -60,6 +59,11 @@ data_export/
 daemon.pid
 daemon.log
 run/
+
+# ====================
+# 本地历史
+# ====================
+.history/
 
 # ====================
 # 服务特定
@@ -73,15 +77,19 @@ libs/external/
 # ====================
 # 配置文件（含凭证）
 # ====================
-config/.env
 **/config.json
 !**/config.example.json
 **/ft_userdir/
 
-# ====================
-# 临时文档
-# ====================
-AUDIT_REPORT.md
-CODE_LOCATIONS.md
-OPTIMIZATION_TODO.md
-TODO.md
+# 敏感配置（绝对不提交）
+config/.env
+services/*/config/.env
+
+# 保留模板
+!config/.env.example
+!services/*/config/.env.example
+
+# SQLite 临时文件
+*.db-shm
+*.db-wal
+*.db-journal
