@@ -45,7 +45,7 @@ src/
 ```bash
 # 方式一：使用初始化脚本
 cd /path/to/tradecat
-./scripts/init-service.sh telegram-service
+./scripts/init.sh telegram-service
 
 # 方式二：手动安装
 cd services/telegram-service
@@ -73,7 +73,7 @@ nohup python -m src.main > logs/bot.log 2>&1 &
 
 # 或使用守护进程（从项目根目录）
 cd /path/to/tradecat
-./scripts/daemon.sh start
+./scripts/start.sh start
 ```
 
 ## 配置说明

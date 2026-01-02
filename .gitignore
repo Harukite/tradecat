@@ -1,20 +1,27 @@
-# 环境配置（全局）
+# ====================
+# 环境配置
+# ====================
 .env
 .env.*
 !.env.example
 
+# ====================
 # Python
+# ====================
 __pycache__/
 *.pyc
 *.pyo
 .venv/
 venv/
-data_export/
 
+# ====================
 # Node
+# ====================
 node_modules/
 
+# ====================
 # 运行时
+# ====================
 logs/
 pids/
 *.pid
@@ -23,59 +30,47 @@ cache/
 *.cache
 *.db
 
+# ====================
 # IDE
+# ====================
 .idea/
 .vscode/
 *.swp
 
-# 导出数据
-data_export/
-
-# 屏蔽目录
+# ====================
+# 备份与导出
+# ====================
 backups/
+exports/
+data_export/
+*.zst
+*.dump
+.history/
+
+# ====================
+# 守护进程
+# ====================
+daemon.pid
+daemon.log
+run/
+
+# ====================
+# 本地历史
+# ====================
+.history/
+
+# ====================
+# 服务特定
+# ====================
+services/telegram-service/data/
+libs/database/csv/downloads/
+libs/database/db/state/
+libs/database/telegram-cards/
 libs/external/
 
-# 临时文件
-1
-2
-3
-
-# 内部文档
-AGENTS.md
-
+# ====================
 # 配置文件（含凭证）
+# ====================
 **/config.json
 !**/config.example.json
 **/ft_userdir/
-libs/external/
-.history/
-data_export/
-libs/database/csv/downloads/
-libs/database/telegram-cards/
-# order-service
-services/order-service/.env
-services/order-service/backups/
-services/order-service/docs/
-services/order-service/AGENTS.md
-services/order-service/bugs.jsonl
-services/order-service/services/*/.venv/
-services/order-service/services/*/logs/
-# telegram-service
-services/telegram-service/.env
-services/telegram-service/logs/
-services/telegram-service/docs/
-services/telegram-service/data/
-libs/database/db/state/
-
-# 备份数据（太大）
-backups/
-exports/
-*.zst
-*.dump
-
-# 守护进程
-daemon.pid
-daemon.log
-
-# 本地历史
-.history/

@@ -4,7 +4,7 @@
 
 <div align="center">
 
-# 🐱 TradeCat
+# 🐱 交易猫
 
 **加密货币量化交易数据平台**
 
@@ -50,6 +50,8 @@
 - [📁 目录结构](#-目录结构)
 - [🔧 运维指南](#-运维指南)
 - [📞 联系方式](#-联系方式)
+
+> 🤖 **从零开始？** 复制 [安装助手提示词](SETUP_PROMPT.md) 到任何 AI 助手，一步一步指导你完成安装
 
 ---
 
@@ -439,63 +441,42 @@ cd ta-lib && ./configure --prefix=/usr && make && sudo make install
 cd .. && rm -rf ta-lib ta-lib-0.4.0-src.tar.gz
 ```
 
-#### 3. 初始化服务
+#### 3. 一键初始化
 
 ```bash
-# 一键初始化所有服务
-./scripts/init-all.sh
+# 初始化所有服务（创建虚拟环境、安装依赖、复制配置）
+./scripts/init.sh
 
-# 或单独初始化
-./scripts/init-service.sh data-service
-./scripts/init-service.sh trading-service
-./scripts/init-service.sh telegram-service
-./scripts/init-service.sh order-service
+# 或单独初始化某个服务
+./scripts/init.sh data-service
 ```
 
 #### 4. 配置环境变量
 
 ```bash
-# 复制配置模板
-cp services/data-service/config/.env.example services/data-service/config/.env
-cp services/trading-service/config/.env.example services/trading-service/config/.env
-cp services/telegram-service/config/.env.example services/telegram-service/config/.env
-cp services/order-service/config/.env.example services/order-service/config/.env
-
-# 编辑 Telegram Bot Token
-vim services/telegram-service/config/.env
-# BOT_TOKEN=your_telegram_bot_token
+# 编辑各服务配置（init.sh 已自动从 .env.example 复制）
+vim services/data-service/config/.env      # 数据库连接
+vim services/telegram-service/config/.env  # Telegram Bot Token
+vim services/trading-service/config/.env   # 指标计算配置
 ```
 
 #### 5. 启动服务
 
 ```bash
-# 方式一：守护进程（推荐，自动重启）
-./scripts/daemon.sh start
+# 一键启动 + 守护（推荐，自动重启挂掉的服务）
+./scripts/start.sh daemon
 
-# 方式二：单独启动各服务
-cd services/data-service && ./scripts/start.sh start
-cd services/trading-service && ./scripts/start.sh start
-cd services/telegram-service && python -m src.main
+# 查看状态
+./scripts/start.sh status
+
+# 停止全部
+./scripts/start.sh stop
 ```
 
 #### 6. 验证安装
 
 ```bash
-# 运行验证脚本
 ./scripts/verify.sh
-```
-
-### 验证安装
-
-```bash
-# 检查进程
-ps aux | grep -E "data-service|trading-service|telegram"
-
-# 检查数据库
-PGPASSWORD=postgres psql -h localhost -p 5433 -U postgres -d market_data -c "SELECT COUNT(*) FROM market_data.candles_1m;"
-
-# 检查指标数据
-sqlite3 libs/database/services/telegram-service/market_data.db ".tables"
 ```
 
 ---
@@ -546,9 +527,8 @@ tradecat/
 │   └── 📂 common/                  # 共享工具
 │
 ├── 📂 scripts/                     # 全局脚本
-│   ├── init-all.sh                 # 初始化所有服务
-│   ├── init-service.sh             # 初始化单个服务
-│   ├── daemon.sh                   # 守护进程
+│   ├── init.sh                     # 初始化脚本
+│   ├── start.sh                    # 统一启动/守护脚本
 │   ├── verify.sh                   # 验证脚本
 │   └── export_timescaledb.sh       # 数据导出
 │
@@ -571,17 +551,22 @@ tradecat/
 ### 服务管理
 
 <details open>
-<summary><strong>守护进程（推荐）</strong></summary>
+<summary><strong>统一管理（推荐）</strong></summary>
 
 ```bash
-# 启动守护进程（自动管理所有服务，30秒检查一次，自动重启）
-./scripts/daemon.sh start
-
-# 停止守护进程
-./scripts/daemon.sh stop
+# 启动 + 守护（自动重启挂掉的服务，30秒检查一次）
+./scripts/start.sh daemon
 
 # 查看状态
-./scripts/daemon.sh status
+./scripts/start.sh status
+
+# 停止全部
+./scripts/start.sh daemon-stop
+
+# 仅启动（不守护）
+./scripts/start.sh start
+./scripts/start.sh stop
+./scripts/start.sh restart
 ```
 
 </details>
@@ -592,20 +577,25 @@ tradecat/
 ```bash
 # data-service
 cd services/data-service
-./scripts/start.sh start    # 启动
+./scripts/start.sh daemon   # 启动 + 守护
+./scripts/start.sh start    # 仅启动
 ./scripts/start.sh stop     # 停止
-./scripts/start.sh restart  # 重启
 ./scripts/start.sh status   # 状态
 
-# trading-service
-cd services/trading-service
-./scripts/start.sh start
-./scripts/start.sh stop
+# trading-service / telegram-service 同上
+```
 
-# telegram-service
-cd services/telegram-service
-python -m src.main          # 前台运行
-nohup python -m src.main &  # 后台运行
+</details>
+
+<details>
+<summary><strong>初始化</strong></summary>
+
+```bash
+# 初始化全部服务
+./scripts/init.sh
+
+# 初始化单个服务
+./scripts/init.sh data-service
 ```
 
 </details>
@@ -614,7 +604,6 @@ nohup python -m src.main &  # 后台运行
 <summary><strong>验证与检查</strong></summary>
 
 ```bash
-# 运行验证脚本（格式检查、语法检查、文档链接检查）
 ./scripts/verify.sh
 ```
 
@@ -818,9 +807,15 @@ PGPASSWORD=postgres psql -h localhost -p 5433 -U postgres -c "\l"
 
 ### 支持项目
 
-- **币安 UID**: `572155580`
-- **Tron (TRC20)**: `TQtBXCSTwLFHjBqTS4rNUp7ufiGx51BRey`
-- **Solana**: `HjYhozVf9AQmfv7yv79xSNs6uaEU5oUk2USasYQfUYau`
+救救孩子，感谢了，好人一生平安🙏🙏🙏
+
+-   **币安 UID**: `572155580`
+-   **Tron (TRC20)**: `TQtBXCSTwLFHjBqTS4rNUp7ufiGx51BRey`
+-   **Solana**: `HjYhozVf9AQmfv7yv79xSNs6uaEU5oUk2USasYQfUYau`
+-   **Ethereum (ERC20)**: `0xa396923a71ee7D9480b346a17dDeEb2c0C287BBC`
+-   **BNB Smart Chain (BEP20)**: `0xa396923a71ee7D9480b346a17dDeEb2c0C287BBC`
+-   **Bitcoin**: `bc1plslluj3zq3snpnnczplu7ywf37h89dyudqua04pz4txwh8z5z5vsre7nlm`
+-   **Sui**: `0xb720c98a48c77f2d49d375932b2867e793029e6337f1562522640e4f84203d2e`
 
 </td>
 </tr>

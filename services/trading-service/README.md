@@ -48,7 +48,7 @@ src/
 ```bash
 # 方式一：使用初始化脚本
 cd /path/to/tradecat
-./scripts/init-service.sh trading-service
+./scripts/init.sh trading-service
 
 # 方式二：手动安装
 cd services/trading-service
