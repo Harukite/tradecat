@@ -68,42 +68,13 @@ def log(msg: str):
     print(f"[{datetime.now():%Y-%m-%d %H:%M:%S}] {msg}", flush=True)
 
 
-def _parse_list(val: str) -> list:
-    """解析逗号分隔的列表"""
-    return [s.strip().upper() for s in val.split(",") if s.strip()]
-
-def _load_symbol_groups() -> dict:
-    """从环境变量加载所有分组"""
-    groups = {}
-    for key, val in os.environ.items():
-        if key.startswith("SYMBOLS_GROUP_") and val:
-            name = key[14:].lower()
-            groups[name] = _parse_list(val)
-    return groups
-
-def _get_configured_symbols() -> list:
-    """根据配置获取币种列表，返回None表示使用auto模式"""
-    groups_str = os.environ.get("SYMBOLS_GROUPS", "auto")
-    extra = _parse_list(os.environ.get("SYMBOLS_EXTRA", ""))
-    exclude = set(_parse_list(os.environ.get("SYMBOLS_EXCLUDE", "")))
-    
-    selected_groups = [g.strip().lower() for g in groups_str.split(",") if g.strip()]
-    
-    # auto/all 返回 None
-    if "auto" in selected_groups or "all" in selected_groups:
-        return None
-    
-    # 加载分组
-    all_groups = _load_symbol_groups()
-    symbols = set()
-    for g in selected_groups:
-        if g in all_groups:
-            symbols.update(all_groups[g])
-    
-    symbols.update(extra)
-    symbols -= exclude
-    
-    return sorted(symbols) if symbols else None
+# 使用共享币种模块
+import sys as _sys
+from pathlib import Path as _Path
+_libs_path = str(_Path(__file__).parents[3] / "libs")
+if _libs_path not in _sys.path:
+    _sys.path.insert(0, _libs_path)
+from common.symbols import get_configured_symbols
 
 
 # ============ 高优先级币种识别（复用 async_full_engine 完整逻辑）============
@@ -312,7 +283,7 @@ def update_priority():
     global high_priority_symbols, last_priority_update
     
     t0 = time.time()
-    configured = _get_configured_symbols()
+    configured = get_configured_symbols()
     
     if configured:
         # 使用配置的分组
@@ -322,8 +293,8 @@ def update_priority():
         # auto模式：动态高优先级
         symbols = list(get_high_priority_symbols_fast(top_n=HIGH_PRIORITY_TOP_N))
         # 应用额外添加和排除
-        extra = _parse_list(os.environ.get("SYMBOLS_EXTRA", ""))
-        exclude = set(_parse_list(os.environ.get("SYMBOLS_EXCLUDE", "")))
+        extra = [s.strip().upper() for s in os.environ.get("SYMBOLS_EXTRA", "").split(",") if s.strip()]
+        exclude = {s.strip().upper() for s in os.environ.get("SYMBOLS_EXCLUDE", "").split(",") if s.strip()}
         symbols = sorted((set(symbols) | set(extra)) - exclude)
         log(f"自动高优先级: {len(symbols)} 币种")
     
