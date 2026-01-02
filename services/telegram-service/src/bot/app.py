@@ -538,7 +538,7 @@ def smart_spread_format(spread: float) -> str:
                 formatted = formatted.rstrip('0').rstrip('.')
 
             return formatted
-    except:
+    except Exception:
         return str(spread)
 
 
@@ -1674,7 +1674,7 @@ class UserRequestHandler:
                 cache_data = DataManager.load_json(cache_file)
                 if cache_data and 'last_update' in cache_data:
                     cache_info = f"\n📄 缓存时间: {cache_data['last_update']}"
-        except:
+        except Exception:
             pass
         
         # 根据流向类型过滤和排序数据
@@ -2279,7 +2279,7 @@ class TradingSuperheroBot:
             if temp_file and os.path.exists(temp_file):
                 try:
                     os.remove(temp_file)
-                except:
+                except Exception:
                     pass
         
         return False
@@ -3554,7 +3554,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
         await query.answer("处理中...")
-    except:
+    except Exception:
         pass
     
     logger.info(f"🔍 按钮回调 / 用户: {user_id} / 按钮: {button_data}")
@@ -3772,7 +3772,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                             [InlineKeyboardButton("🔄 重试", callback_data="main_menu")]
                         ])
                     )
-                except:
+                except Exception:
                     await query.answer("系统正在重新加载，请稍后重试")
             
         elif query.data == "cancel_analysis":
