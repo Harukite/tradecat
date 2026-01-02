@@ -2,27 +2,31 @@
 # TradeCat Makefile
 # ==============================================================================
 
-PYTHON = python3
-
-.PHONY: help init start stop status daemon verify clean
+.PHONY: help init start stop status daemon daemon-stop verify clean export-db
 
 # 默认目标
 help:
 	@echo "TradeCat - 加密货币量化交易数据平台"
 	@echo ""
 	@echo "Usage:"
-	@echo "    make init       - 初始化所有服务（虚拟环境 + 依赖）"
-	@echo "    make start      - 启动所有服务"
-	@echo "    make stop       - 停止所有服务"
-	@echo "    make status     - 查看服务状态"
-	@echo "    make daemon     - 启动守护进程（自动重启）"
-	@echo "    make verify     - 运行代码验证"
-	@echo "    make clean      - 清理缓存文件"
+	@echo "    make init        - 初始化所有服务（虚拟环境 + 依赖）"
+	@echo "    make start       - 启动所有服务"
+	@echo "    make stop        - 停止所有服务"
+	@echo "    make status      - 查看服务状态"
+	@echo "    make daemon      - 启动守护进程（自动重启）"
+	@echo "    make daemon-stop - 停止守护进程"
+	@echo "    make verify      - 运行代码验证"
+	@echo "    make clean       - 清理缓存文件"
+	@echo "    make export-db   - 导出 TimescaleDB 数据"
 	@echo ""
 
 # 初始化
 init:
 	@./scripts/init.sh
+
+# 一键安装
+install:
+	@./scripts/install.sh
 
 # 启动服务
 start:

@@ -455,9 +455,10 @@ cd .. && rm -rf ta-lib ta-lib-0.4.0-src.tar.gz
 
 ```bash
 # 编辑各服务配置（init.sh 已自动从 .env.example 复制）
-vim services/data-service/config/.env      # 数据库连接
-vim services/telegram-service/config/.env  # Telegram Bot Token
-vim services/trading-service/config/.env   # 指标计算配置
+# 编辑全局配置（所有服务共用）
+vim config/.env
+
+
 ```
 
 #### 5. 启动服务
@@ -486,6 +487,19 @@ vim services/trading-service/config/.env   # 指标计算配置
 ```
 tradecat/
 │
+├── 📂 config/                      # 统一配置（所有服务共用）
+│   ├── .env                        # 生产配置（含密钥，不提交）
+│   ├── .env.example                # 配置模板
+│   └── logrotate.conf              # 日志轮转
+│
+├── 📂 scripts/                     # 全局脚本
+│   ├── install.sh                  # 一键安装
+│   ├── init.sh                     # 初始化脚本
+│   ├── start.sh                    # 统一启动/守护脚本
+│   ├── verify.sh                   # 验证脚本
+│   ├── export_timescaledb.sh       # 数据导出
+│   └── timescaledb_compression.sh  # 压缩管理
+│
 ├── 📂 services/                    # 微服务目录 (4个)
 │   │
 │   ├── 📂 data-service/            # 数据采集服务
@@ -493,17 +507,15 @@ tradecat/
 │   │   │   ├── 📂 collectors/      # 采集器
 │   │   │   ├── 📂 adapters/        # 适配器
 │   │   │   └── config.py
-│   │   ├── 📂 config/
 │   │   ├── 📂 scripts/
 │   │   ├── requirements.txt
-│   │   └── requirements.lock.txt   # 依赖版本锁定
+│   │   └── requirements.lock.txt
 │   │
 │   ├── 📂 trading-service/         # 指标计算服务
 │   │   ├── 📂 src/
 │   │   │   ├── 📂 indicators/      # 38个指标
 │   │   │   ├── 📂 core/            # 计算引擎
 │   │   │   └── simple_scheduler.py
-│   │   ├── 📂 config/
 │   │   ├── 📂 scripts/
 │   │   ├── requirements.txt
 │   │   └── requirements.lock.txt
@@ -514,14 +526,13 @@ tradecat/
 │   │   │   ├── 📂 signals/         # 信号检测引擎
 │   │   │   ├── 📂 bot/             # Bot 主程序
 │   │   │   └── main.py
-│   │   ├── 📂 config/
+│   │   ├── 📂 scripts/
 │   │   ├── requirements.txt
 │   │   └── requirements.lock.txt
 │   │
 │   └── 📂 order-service/           # 交易执行服务
 │       ├── 📂 src/
 │       │   └── 📂 market-maker/    # A-S 做市系统
-│       ├── 📂 config/
 │       ├── requirements.txt
 │       └── requirements.lock.txt
 │
@@ -532,23 +543,12 @@ tradecat/
 │   └── 📂 common/                  # 共享工具
 │       └── proxy_manager.py        # 代理管理器
 │
-├── 📂 config/                      # 全局配置
-│   ├── .env.example                # 配置模板
-│   └── logrotate.conf              # 日志轮转
-│
-├── 📂 scripts/                     # 全局脚本
-│   ├── init.sh                     # 初始化脚本
-│   ├── start.sh                    # 统一启动/守护脚本
-│   ├── verify.sh                   # 验证脚本
-│   ├── export_timescaledb.sh       # 数据导出
-│   └── timescaledb_compression.sh  # 压缩管理
-│
 ├── 📂 backups/                     # 备份目录
 │   └── 📂 timescaledb/             # 数据库备份
 │
+├── Makefile                        # 常用命令
 ├── README.md                       # 项目说明
 ├── AGENTS.md                       # AI Agent 指南
-├── Makefile                        # 常用命令
 └── CONTRIBUTING.md                 # 贡献指南
 ```
 

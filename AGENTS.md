@@ -9,15 +9,15 @@
 ### 1.1 允许的操作
 
 - 修改 `services/*/src/` 下的业务代码
-- 修改 `services/*/config/.env.example` 配置模板
+- 修改 `config/.env.example` 全局配置模板
 - 添加/修改技术指标 (`services/trading-service/src/indicators/`)
 - 添加/修改排行榜卡片 (`services/telegram-service/src/cards/`)
-- 修改启动脚本 (`services/*/scripts/`)
-- 更新文档 (`README.md`, `AGENTS.md`, `docs/`)
+- 修改启动脚本 (`services/*/scripts/`, `scripts/`)
+- 更新文档 (`README.md`, `AGENTS.md`)
 
 ### 1.2 禁止的操作
 
-- **禁止修改** `services/*/config/.env` 生产配置文件
+- **禁止修改** `config/.env` 生产配置文件
 - **禁止修改** 数据库 schema（除非明确要求）
 - **禁止删除** `libs/database/` 下的数据文件
 - **禁止修改** `.gitignore` 中已忽略的敏感文件
@@ -28,7 +28,7 @@
 
 | 路径 | 说明 | 操作限制 |
 |:---|:---|:---|
-| `services/*/config/.env` | 生产配置（含密钥） | 只读 |
+| `config/.env` | 生产配置（含密钥） | 只读 |
 | `libs/database/services/telegram-service/market_data.db` | SQLite 指标数据 | 只读 |
 | `backups/timescaledb/` | 数据库备份 | 禁止修改 |
 
@@ -104,14 +104,19 @@ ruff check services/
 | trading-service | `cd services/trading-service && ./scripts/start.sh start` | `./scripts/start.sh stop` | `./scripts/start.sh status` |
 | telegram-service | `cd services/telegram-service && ./scripts/start.sh start` | `./scripts/start.sh stop` | `./scripts/start.sh status` |
 | order-service | `cd services/order-service && python -m src.market-maker.main` | Ctrl+C | - |
-| 全部（守护） | `./scripts/start.sh daemon` | `./scripts/start.sh daemon-stop` | `./scripts/start.sh daemon-status` |
+| 全部（守护） | `./scripts/start.sh daemon` | `./scripts/start.sh daemon-stop` | `./scripts/start.sh status` |
 
-### 3.3 验证与测试
+### 3.3 Make 快捷命令
 
 | 命令 | 说明 |
 |:---|:---|
-| `./scripts/verify.sh` | 运行格式检查、语法检查、文档链接检查 |
-| `python3 -m py_compile <file>` | 单文件语法检查 |
+| `make init` | 初始化所有服务 |
+| `make start` | 启动所有服务 |
+| `make stop` | 停止所有服务 |
+| `make status` | 查看服务状态 |
+| `make daemon` | 启动守护进程 |
+| `make verify` | 代码验证 |
+| `make clean` | 清理缓存 |
 
 ### 3.4 数据库操作
 
@@ -135,9 +140,9 @@ sqlite3 libs/database/services/telegram-service/market_data.db
 
 ### 4.1 架构原则
 
-- **微服务独立**：每个服务有独立的 `.venv`、`config/`、`requirements.txt`
+- **微服务独立**：每个服务有独立的 `.venv`、`requirements.txt`
+- **配置统一**：所有配置集中在 `config/.env`，各服务共用
 - **数据流向**：`data-service → TimescaleDB → trading-service → SQLite → telegram-service`
-- **配置分离**：配置文件统一放在 `services/*/config/` 目录
 
 ### 4.2 模块边界
 
@@ -184,8 +189,8 @@ sqlite3 libs/database/services/telegram-service/market_data.db
 
 ### 5.3 错误处理
 
-- 使用 try-except 捕获预期异常
-- 记录日志而非静默失败
+- 使用 `except Exception as e:` 捕获异常并记录日志
+- 禁止裸 `except:`
 - 关键操作添加超时处理
 
 ### 5.4 日志规范
@@ -205,23 +210,34 @@ logger.error("错误: %s", error, exc_info=True)
 
 ```
 tradecat/
+├── config/                     # 统一配置（所有服务共用）
+│   ├── .env                    # 生产配置（含密钥，不提交）
+│   ├── .env.example            # 配置模板
+│   └── logrotate.conf          # 日志轮转
+│
+├── scripts/                    # 全局脚本
+│   ├── install.sh              # 一键安装
+│   ├── init.sh                 # 初始化脚本
+│   ├── start.sh                # 统一启动/守护脚本
+│   ├── verify.sh               # 验证脚本
+│   ├── export_timescaledb.sh   # 数据导出
+│   └── timescaledb_compression.sh  # 压缩管理
+│
 ├── services/                   # 4个微服务
 │   ├── data-service/           # 数据采集服务
 │   │   ├── src/
 │   │   │   ├── collectors/     # 采集器（backfill/ws/metrics）
 │   │   │   ├── adapters/       # 适配器（timescale/ccxt）
 │   │   │   └── config.py
-│   │   ├── config/.env.example
 │   │   ├── scripts/start.sh
 │   │   ├── requirements.txt
-│   │   └── requirements.lock.txt  # 依赖版本锁定
+│   │   └── requirements.lock.txt
 │   │
 │   ├── trading-service/        # 指标计算服务
 │   │   ├── src/
 │   │   │   ├── indicators/     # 38个指标
 │   │   │   ├── core/engine.py  # 计算引擎
 │   │   │   └── simple_scheduler.py
-│   │   ├── config/.env.example
 │   │   ├── scripts/start.sh
 │   │   ├── requirements.txt
 │   │   └── requirements.lock.txt
@@ -232,14 +248,13 @@ tradecat/
 │   │   │   ├── signals/        # 信号检测引擎
 │   │   │   ├── bot/app.py      # Bot 主程序
 │   │   │   └── main.py
-│   │   ├── config/.env.example
+│   │   ├── scripts/start.sh
 │   │   ├── requirements.txt
 │   │   └── requirements.lock.txt
 │   │
 │   └── order-service/          # 交易执行服务
 │       ├── src/
 │       │   └── market-maker/   # A-S 做市系统
-│       ├── config/.env.example
 │       ├── requirements.txt
 │       └── requirements.lock.txt
 │
@@ -248,22 +263,11 @@ tradecat/
 │   │   └── services/telegram-service/
 │   │       └── market_data.db  # SQLite 指标数据
 │   └── common/                 # 共享工具库
-│       └── proxy_manager.py    # 代理管理器（运行时重试+冷却）
+│       └── proxy_manager.py    # 代理管理器
 │
-├── config/
-│   ├── .env.example            # 全局配置模板
-│   └── logrotate.conf          # 日志轮转配置
-│
-├── scripts/
-│   ├── init.sh                 # 初始化脚本
-│   ├── start.sh                # 统一启动/守护脚本
-│   ├── verify.sh               # 验证脚本
-│   ├── export_timescaledb.sh   # 数据导出
-│   └── timescaledb_compression.sh  # 压缩管理
-│
-# install.sh 已移至 scripts/                  # 一键安装
-├── Makefile                    # 常用命令
-└── README.md                   # 项目文档
+├── Makefile                    # 常用命令快捷方式
+├── README.md                   # 项目文档
+└── AGENTS.md                   # 本文档
 ```
 
 ### 6.1 关键入口文件
@@ -281,7 +285,7 @@ tradecat/
 |:---|:---|:---|
 | 指标计算引擎 | `trading-service/src/core/engine.py` | 批量计算指标 |
 | K线形态检测 | `trading-service/src/indicators/batch/k_pattern.py` | TA-Lib + patternpy |
-| 数据提供者 | `telegram-service/src/cards/data_provider.py` | 读取 SQLite 数据（连接池） |
+| 数据提供者 | `telegram-service/src/cards/data_provider.py` | 读取 SQLite + 币种过滤 |
 | 排行榜服务 | `telegram-service/src/cards/排行榜服务.py` | 生成排行榜 |
 | 信号引擎 | `telegram-service/src/signals/engine.py` | 信号检测与触发 |
 | 代理管理器 | `libs/common/proxy_manager.py` | 运行时代理重试+冷却 |
@@ -335,7 +339,7 @@ PGPASSWORD=postgres psql -h localhost -p 5433 -U postgres -c "\l"
 **问题**：Bot 启动报错
 
 **检查**：
-1. 确认 `config/.env` 中 `TELEGRAM_BOT_TOKEN` 已设置
+1. 确认 `config/.env` 中 `BOT_TOKEN` 已设置
 2. 检查代理配置（如需）：
    ```bash
    export HTTPS_PROXY=http://127.0.0.1:7890
@@ -390,7 +394,7 @@ docs: 更新 README 快速开始指南
 
 - [ ] 代码通过语法检查
 - [ ] 相关文档已更新
-- [ ] 配置变更已同步到 `.env.example`
+- [ ] 配置变更已同步到 `config/.env.example`
 - [ ] 新依赖已添加到 `requirements.txt`
 
 ---
@@ -404,7 +408,7 @@ docs: 更新 README 快速开始指南
 | 变更类型 | 需更新的文档 |
 |:---|:---|
 | 新增/修改命令 | README.md, AGENTS.md |
-| 新增/修改配置项 | README.md, `.env.example` |
+| 新增/修改配置项 | README.md, `config/.env.example` |
 | 新增/修改指标 | README.md (指标列表) |
 | 目录结构变更 | README.md, AGENTS.md |
 | 依赖变更 | README.md, `requirements.txt` |
@@ -420,42 +424,41 @@ docs: 更新 README 快速开始指南
 ### 9.3 禁止猜测
 
 - 不确定的端口、路径、命令**必须**标注 TODO
-- 不确定的配置项**必须**查看 `.env.example` 确认
+- 不确定的配置项**必须**查看 `config/.env.example` 确认
 - 不确定的依赖版本**必须**查看 `requirements.txt` 确认
 
 ---
 
 ## 10. 环境变量参考
 
-### 10.1 data-service
+所有配置集中在 `config/.env`，详细说明见配置文件注释。
 
-| 变量 | 说明 | 默认值 |
+### 10.1 核心配置
+
+| 变量 | 说明 | 示例 |
 |:---|:---|:---|
-| `DATABASE_URL` | TimescaleDB 连接串 | - |
-| `HTTP_PROXY` | HTTP 代理 | - |
-| `RATE_LIMIT_PER_MINUTE` | API 限流 | 1800 |
-| `MAX_CONCURRENT` | 最大并发 | 5 |
+| `DATABASE_URL` | TimescaleDB 连接串 | `postgresql://postgres:postgres@localhost:5433/market_data` |
+| `BOT_TOKEN` | Telegram Bot Token | `123456:ABC...` |
+| `HTTP_PROXY` | HTTP 代理 | `http://127.0.0.1:9910` |
 
-### 10.2 trading-service
+### 10.2 币种管理
 
-| 变量 | 说明 | 默认值 |
+| 变量 | 说明 | 示例 |
 |:---|:---|:---|
-| `DATABASE_URL` | TimescaleDB 连接串 | - |
-| `INDICATOR_SQLITE_PATH` | SQLite 输出路径 | 自动使用相对路径 |
-| `MAX_WORKERS` | 计算线程数 | 4 |
-| `COMPUTE_BACKEND` | 计算后端 (thread/process/hybrid) | thread |
-| `MAX_IO_WORKERS` | IO 任务线程数 | 8 |
-| `MAX_CPU_WORKERS` | CPU 任务进程数 | 4 |
+| `SYMBOLS_GROUPS` | 使用的分组 | `auto`, `all`, `main6`, `defi,meme` |
+| `SYMBOLS_GROUP_xxx` | 自定义分组 | `BTCUSDT,ETHUSDT,...` |
+| `SYMBOLS_EXTRA` | 额外添加 | `NEWUSDT` |
+| `SYMBOLS_EXCLUDE` | 强制排除 | `BADUSDT` |
 
-### 10.3 telegram-service
+### 10.3 服务配置
 
-| 变量 | 说明 | 默认值 |
+| 变量 | 服务 | 说明 |
 |:---|:---|:---|
-| `BOT_TOKEN` | Telegram Bot Token | - |
-| `DATABASE_URL` | TimescaleDB 连接串 | - |
-| `HTTP_PROXY` | HTTP 代理 | - |
-| `BINANCE_API_DISABLED` | 禁用 Binance API | 1 |
-| `BLOCKED_SYMBOLS` | 屏蔽币种（逗号分隔） | BNXUSDT,ALPACAUSDT |
+| `MAX_CONCURRENT` | data-service | 最大并发请求 |
+| `MAX_WORKERS` | trading-service | 计算线程数 |
+| `COMPUTE_BACKEND` | trading-service | 计算后端 (thread/process) |
+| `BINANCE_API_DISABLED` | telegram-service | 禁用 Binance API |
+| `BLOCKED_SYMBOLS` | telegram-service | 屏蔽币种黑名单 |
 
 ---
 
@@ -471,17 +474,17 @@ docs: 更新 README 快速开始指南
 # 启动服务（推荐守护模式）
 ./scripts/start.sh daemon       # 启动 + 守护（自动重启）
 ./scripts/start.sh daemon-stop  # 停止守护 + 全部服务
-./scripts/start.sh daemon-status # 查看状态
-
-# 仅启动（不守护）
-./scripts/start.sh start        # 启动全部
-./scripts/start.sh stop         # 停止全部
 ./scripts/start.sh status       # 查看状态
+
+# Make 快捷命令
+make init                       # 初始化
+make start                      # 启动
+make stop                       # 停止
+make daemon                     # 守护模式
 
 # 单服务管理
 cd services/trading-service
-./scripts/start.sh daemon       # 启动 + 守护
-./scripts/start.sh start        # 仅启动
+./scripts/start.sh start        # 启动
 ./scripts/start.sh stop         # 停止
 ./scripts/start.sh status       # 状态
 
@@ -500,8 +503,9 @@ sqlite3 libs/database/services/telegram-service/market_data.db
 
 | 用途 | 路径 |
 |:---|:---|
-| 指标代码 | `services/trading-service/src/indicators/batch/` |
+| 统一配置 | `config/.env` |
+| 配置模板 | `config/.env.example` |
+| 指标代码 | `services/trading-service/src/indicators/` |
 | 排行榜卡片 | `services/telegram-service/src/cards/` |
 | SQLite 数据 | `libs/database/services/telegram-service/market_data.db` |
 | 日志目录 | `services/*/logs/` |
-| 配置模板 | `services/*/config/.env.example` |
