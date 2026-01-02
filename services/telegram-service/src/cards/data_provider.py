@@ -9,11 +9,34 @@ from __future__ import annotations
 
 import logging
 import sqlite3
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 
 
 LOGGER = logging.getLogger(__name__)
+
+
+def _parse_timestamp(ts_str: str) -> datetime:
+    """解析时间戳字符串为 datetime，支持多种格式"""
+    if not ts_str:
+        return datetime.min
+    ts_str = ts_str.strip()
+    # 处理 Z 后缀
+    if ts_str.endswith('Z'):
+        ts_str = ts_str[:-1] + '+00:00'
+    try:
+        return datetime.fromisoformat(ts_str)
+    except ValueError:
+        # 尝试无时区格式
+        for fmt in ('%Y-%m-%d %H:%M:%S', '%Y-%m-%dT%H:%M:%S', '%Y-%m-%d'):
+            try:
+                return datetime.strptime(ts_str, fmt)
+            except ValueError:
+                continue
+        LOGGER.warning("无法解析时间戳: %s", ts_str)
+        return datetime.min
+
 
 # 新旧表名映射
 TABLE_NAME_MAP = {
@@ -245,18 +268,18 @@ class RankingDataProvider:
         rows = self._load_table_period(table, period)
         target_period = _normalize_period_value(period)
         
-        # 第一遍：找出最新时间戳
-        max_ts = ""
+        # 第一遍：找出最新时间戳（用 datetime 比较）
+        max_ts = datetime.min
         for row in rows:
             r = dict(row)
             r_period = _normalize_period_value(str(r.get("周期", "")))
             if r_period != target_period:
                 continue
-            ts = str(r.get("数据时间", ""))
+            ts = _parse_timestamp(str(r.get("数据时间", "")))
             if ts > max_ts:
                 max_ts = ts
         
-        if not max_ts:
+        if max_ts == datetime.min:
             return []
         
         # 第二遍：只取最新时间戳的数据，每个币种只保留一条
@@ -267,7 +290,7 @@ class RankingDataProvider:
             r_period = _normalize_period_value(str(r.get("周期", "")))
             if r_period != target_period:
                 continue
-            ts = str(r.get("数据时间", ""))
+            ts = _parse_timestamp(str(r.get("数据时间", "")))
             sym = str(r.get("交易对", "")).upper()
             if ts == max_ts and sym not in seen:
                 seen.add(sym)

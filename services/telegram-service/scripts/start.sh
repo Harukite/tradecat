@@ -15,13 +15,48 @@ BOT_PID="$RUN_DIR/bot.pid"
 BOT_LOG="$LOG_DIR/bot.log"
 STOP_TIMEOUT=10
 
-# 加载配置（按顺序，后加载覆盖先加载）
-load_env() {
-    [ -f "$1" ] && { set -a; source "$1"; set +a; }
+# 安全加载 .env（只读键值解析，拒绝危险行）
+safe_load_env() {
+    local file="$1"
+    [ -f "$file" ] || return 0
+    
+    if [[ "$file" == *"config/.env" ]] && [[ ! "$file" == *".example" ]]; then
+        local perm=$(stat -c %a "$file" 2>/dev/null)
+        if [[ "$perm" != "600" && "$perm" != "400" ]]; then
+            echo "⚠️  警告: $file 权限为 $perm，建议设为 600"
+        fi
+    fi
+    
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
+        [[ "$line" =~ ^[[:space:]]*export ]] && continue
+        [[ "$line" =~ \$\( ]] && continue
+        [[ "$line" =~ \` ]] && continue
+        if [[ "$line" =~ ^([A-Za-z_][A-Za-z0-9_]*)=(.*)$ ]]; then
+            local key="${BASH_REMATCH[1]}"
+            local val="${BASH_REMATCH[2]}"
+            val="${val#\"}" && val="${val%\"}"
+            val="${val#\'}" && val="${val%\'}"
+            export "$key=$val"
+        fi
+    done < "$file"
 }
-# 加载全局配置
-load_env "$PROJECT_ROOT/config/.env"
-load_env "$SERVICE_DIR/config/.env"
+
+# 加载全局配置 → 服务配置
+safe_load_env "$PROJECT_ROOT/config/.env"
+safe_load_env "$SERVICE_DIR/config/.env"
+
+# 代理自检
+check_proxy() {
+    [ -z "${HTTP_PROXY:-}" ] && return 0
+    if curl -s --max-time 3 --proxy "$HTTP_PROXY" https://api.binance.com/api/v3/ping >/dev/null 2>&1; then
+        echo "✓ 代理可用: $HTTP_PROXY"
+    else
+        echo "⚠️  代理不可用，已禁用: $HTTP_PROXY"
+        unset HTTP_PROXY HTTPS_PROXY
+    fi
+}
+check_proxy
 
 # ==================== 工具函数 ====================
 log() {
