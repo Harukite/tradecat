@@ -22,7 +22,7 @@ class ExchangeConfig:
     api_key: str = ""
     api_secret: str = ""
     testnet: bool = True
-    proxy: str = "http://127.0.0.1:9910"
+    proxy: str = ""  # 从环境变量 HTTP_PROXY 读取
     hedge_mode: bool = False  # 是否启用双向持仓模式（不再通过 REST 探测）
     strict_no_rest_markets: bool = False  # 是否预置 markets 以避免 load_markets 隐式 REST
     markets_path: str = "config/markets.json"  # 预置合约元数据路径
@@ -89,6 +89,6 @@ class Config:
                 api_key=os.getenv("API_KEY", ""),
                 api_secret=os.getenv("API_SECRET", ""),
                 testnet=os.getenv("TESTNET", "true").lower() == "true",
-                proxy=os.getenv("PROXY", "http://127.0.0.1:9910"),
+                proxy=os.getenv("HTTP_PROXY") or os.getenv("HTTPS_PROXY") or "",
             )
         )

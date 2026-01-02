@@ -306,7 +306,6 @@ class MetricsRestBackfiller:
 class ZipBackfiller:
     """Binance Vision ZIP 补齐 - 智能颗粒度 + 代理重试"""
     
-    FALLBACK_PROXY = "http://127.0.0.1:9910"
     MAX_CACHE_DAYS = 7  # ZIP 文件最大缓存天数
     
     def __init__(self, ts: TimescaleAdapter, workers: int = 8):
@@ -317,7 +316,7 @@ class ZipBackfiller:
         self._kline_dir.mkdir(parents=True, exist_ok=True)
         self._metrics_dir.mkdir(parents=True, exist_ok=True)
         self._proxies = {"http": settings.http_proxy, "https": settings.http_proxy} if settings.http_proxy else {}
-        self._fallback_proxies = {"http": self.FALLBACK_PROXY, "https": self.FALLBACK_PROXY}
+        self._fallback_proxies = self._proxies  # 使用相同代理，不硬编码备用
     
     def cleanup_old_files(self, max_age_days: int = None) -> int:
         """清理过期的 ZIP 文件"""

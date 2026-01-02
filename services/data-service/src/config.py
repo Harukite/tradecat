@@ -34,7 +34,7 @@ class Settings:
     database_url: str = field(default_factory=lambda: os.getenv(
         "DATABASE_URL", "postgresql://opentd:OpenTD_pass@localhost:5433/market_data"
     ))
-    http_proxy: Optional[str] = field(default_factory=lambda: os.getenv("HTTP_PROXY", "http://127.0.0.1:9910"))
+    http_proxy: Optional[str] = field(default_factory=lambda: os.getenv("HTTP_PROXY") or os.getenv("HTTPS_PROXY"))
     
     # 日志和数据目录改为项目内
     log_dir: Path = field(default_factory=lambda: Path(os.getenv(
