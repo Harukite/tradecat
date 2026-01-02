@@ -21,8 +21,8 @@ STOP_TIMEOUT=10
 load_env() {
     [ -f "$1" ] && { set -a; source "$1"; set +a; }
 }
-load_env "$PROJECT_ROOT/config/.env.shared"
-load_env "$PROJECT_ROOT/config/.env.secrets"
+# 加载全局配置
+load_env "$PROJECT_ROOT/config/.env"
 load_env "$SERVICE_DIR/config/.env"
 
 # 启动命令
