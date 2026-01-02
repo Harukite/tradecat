@@ -278,13 +278,49 @@ class DataWriter:
                 conn.execute(f"DROP TABLE IF EXISTS [{table}]")
                 df.to_sql(table, conn, if_exists="replace", index=False)
             else:
-                # 表存在且列匹配，删除对应周期的旧数据再插入
-                if intervals:
-                    placeholders = ",".join("?" * len(intervals))
-                    conn.execute(f"DELETE FROM [{table}] WHERE 周期 IN ({placeholders})", intervals)
+                # 表存在且列匹配，直接追加（不删除旧数据）
                 df.to_sql(table, conn, if_exists="append", index=False)
+                
+                # 清理旧数据：每个币种每个周期保留最新N条
+                self._cleanup_old_data(conn, table, df)
             
             conn.commit()
+    
+    def _cleanup_old_data(self, conn, table: str, df: pd.DataFrame):
+        """清理旧数据，保留每个币种每个周期最新N条"""
+        # 保留条数配置（约4GB总量）
+        RETENTION = {
+            '1m': 120,   # 2小时
+            '5m': 120,   # 10小时
+            '15m': 96,   # 24小时
+            '1h': 144,   # 6天
+            '4h': 84,    # 14天
+            '1d': 120,   # 4个月
+            '1w': 48,    # 1年
+        }
+        
+        if "周期" not in df.columns or "交易对" not in df.columns or "数据时间" not in df.columns:
+            return
+        
+        for _, row in df[["交易对", "周期"]].drop_duplicates().iterrows():
+            symbol = row["交易对"]
+            interval = row["周期"]
+            limit = RETENTION.get(interval, 60)
+            
+            try:
+                # 删除超出保留数量的旧数据
+                conn.execute(f"""
+                    DELETE FROM [{table}]
+                    WHERE 交易对 = ? AND 周期 = ?
+                    AND 数据时间 NOT IN (
+                        SELECT 数据时间 FROM [{table}]
+                        WHERE 交易对 = ? AND 周期 = ?
+                        ORDER BY 数据时间 DESC
+                        LIMIT ?
+                    )
+                """, (symbol, interval, symbol, interval, limit))
+            except Exception:
+                pass
     
     def write_batch(self, data: Dict[str, pd.DataFrame], interval: str):
         """
@@ -319,19 +355,14 @@ class DataWriter:
                         conn.execute(f"DROP TABLE IF EXISTS [{table}]")
                         df.head(0).to_sql(table, conn, if_exists="replace", index=False)
                     
-                    # 删除旧数据
-                    try:
-                        if "周期" in df.columns:
-                            conn.execute(f"DELETE FROM [{table}] WHERE 周期 = ?", (interval,))
-                        else:
-                            symbols = df["交易对"].unique().tolist()
-                            placeholders = ",".join("?" * len(symbols))
-                            conn.execute(f"DELETE FROM [{table}] WHERE 交易对 IN ({placeholders})", symbols)
-                    except sqlite3.OperationalError:
-                        pass
-                    
+                    # 删除旧数据（改为清理超出保留数量的）
+                    # 不再按周期全删，改为追加后清理
+                
                     # 批量插入
                     df.to_sql(table, conn, if_exists="append", index=False)
+                    
+                    # 清理旧数据
+                    self._cleanup_old_data(conn, table, df)
                 
                 conn.commit()
             except Exception as e:
