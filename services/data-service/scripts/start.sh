@@ -67,20 +67,26 @@ validate_symbols() {
 }
 validate_symbols
 
-# 代理自检（重试3次，防止网络抖动误判）
+# 代理自检（重试3次+指数退避冷却）
 check_proxy() {
     local proxy="${HTTP_PROXY:-${HTTPS_PROXY:-}}"
     [ -z "$proxy" ] && return 0
     
     local retries=3
+    local delay=1
     local i=0
+    
     while [ $i -lt $retries ]; do
         if curl -s --max-time 3 --proxy "$proxy" https://api.binance.com/api/v3/ping >/dev/null 2>&1; then
             echo "✓ 代理可用: $proxy"
             return 0
         fi
         ((i++))
-        [ $i -lt $retries ] && sleep 1
+        if [ $i -lt $retries ]; then
+            echo "  代理检测失败，${delay}秒后重试 ($i/$retries)..."
+            sleep $delay
+            delay=$((delay * 2))  # 指数退避: 1s, 2s, 4s
+        fi
     done
     
     echo "⚠️  代理不可用（重试${retries}次失败），已禁用: $proxy"
