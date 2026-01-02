@@ -14,6 +14,7 @@ import os
 import sqlite3
 import sys
 import time
+import atexit
 from datetime import datetime, timezone
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -41,6 +42,26 @@ INDICATORS_DISABLED = [i.strip().lower() for i in os.environ.get("INDICATORS_DIS
 last_computed = {i: None for i in INTERVALS}
 last_priority_update = None
 high_priority_symbols = []
+
+# SQLite 连接复用（避免频繁开关连接）
+_sqlite_conn = None
+
+def _get_sqlite_conn():
+    """获取 SQLite 连接（单例复用）"""
+    global _sqlite_conn
+    if _sqlite_conn is None:
+        _sqlite_conn = sqlite3.connect(SQLITE_PATH, check_same_thread=False)
+        _sqlite_conn.execute("PRAGMA journal_mode=WAL")
+    return _sqlite_conn
+
+def _close_sqlite_conn():
+    """关闭 SQLite 连接"""
+    global _sqlite_conn
+    if _sqlite_conn:
+        _sqlite_conn.close()
+        _sqlite_conn = None
+
+atexit.register(_close_sqlite_conn)
 
 
 def log(msg: str):
@@ -220,11 +241,10 @@ def get_source_latest(interval: str) -> datetime:
 def get_indicator_latest(interval: str) -> datetime:
     """查询 SQLite 指标该周期最新数据时间"""
     try:
-        conn = sqlite3.connect(SQLITE_PATH)
+        conn = _get_sqlite_conn()
         row = conn.execute("""
             SELECT MAX(数据时间) as latest FROM [MACD柱状扫描器.py] WHERE 周期 = ?
         """, (interval,)).fetchone()
-        conn.close()
         if row and row[0]:
             ts_str = row[0].replace("+00:00", "").replace("T", " ")
             return datetime.fromisoformat(ts_str).replace(tzinfo=timezone.utc)
