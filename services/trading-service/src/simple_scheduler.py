@@ -29,8 +29,6 @@ DB_URL = os.environ.get("DATABASE_URL", "postgresql://opentd:OpenTD_pass@localho
 SQLITE_PATH = os.environ.get("INDICATOR_SQLITE_PATH", os.path.join(PROJECT_ROOT, "libs/database/services/telegram-service/market_data.db"))
 
 # 币种管理配置
-SYMBOLS_MODE = os.environ.get("SYMBOLS_MODE", "auto").lower()
-SYMBOLS_LIST = [s.strip().upper() for s in os.environ.get("SYMBOLS", "").split(",") if s.strip()]
 HIGH_PRIORITY_TOP_N = int(os.environ.get("HIGH_PRIORITY_TOP_N", "50"))
 
 INTERVALS = ["1m", "5m", "15m", "1h", "4h", "1d", "1w"]
@@ -44,13 +42,42 @@ def log(msg: str):
     print(f"[{datetime.now():%Y-%m-%d %H:%M:%S}] {msg}", flush=True)
 
 
-def _filter_symbols(symbols: list) -> list:
-    """根据配置过滤币种"""
-    if SYMBOLS_MODE == "whitelist" and SYMBOLS_LIST:
-        return [s for s in symbols if s in SYMBOLS_LIST]
-    elif SYMBOLS_MODE == "blacklist" and SYMBOLS_LIST:
-        return [s for s in symbols if s not in SYMBOLS_LIST]
-    return symbols
+def _parse_list(val: str) -> list:
+    """解析逗号分隔的列表"""
+    return [s.strip().upper() for s in val.split(",") if s.strip()]
+
+def _load_symbol_groups() -> dict:
+    """从环境变量加载所有分组"""
+    groups = {}
+    for key, val in os.environ.items():
+        if key.startswith("SYMBOLS_GROUP_") and val:
+            name = key[14:].lower()
+            groups[name] = _parse_list(val)
+    return groups
+
+def _get_configured_symbols() -> list:
+    """根据配置获取币种列表，返回None表示使用auto模式"""
+    groups_str = os.environ.get("SYMBOLS_GROUPS", "auto")
+    extra = _parse_list(os.environ.get("SYMBOLS_EXTRA", ""))
+    exclude = set(_parse_list(os.environ.get("SYMBOLS_EXCLUDE", "")))
+    
+    selected_groups = [g.strip().lower() for g in groups_str.split(",") if g.strip()]
+    
+    # auto/all 返回 None
+    if "auto" in selected_groups or "all" in selected_groups:
+        return None
+    
+    # 加载分组
+    all_groups = _load_symbol_groups()
+    symbols = set()
+    for g in selected_groups:
+        if g in all_groups:
+            symbols.update(all_groups[g])
+    
+    symbols.update(extra)
+    symbols -= exclude
+    
+    return sorted(symbols) if symbols else None
 
 
 # ============ 高优先级币种识别（复用 async_full_engine 完整逻辑）============
@@ -253,25 +280,24 @@ def run_calculation(intervals: list, symbols: list):
 
 
 def update_priority():
-    """更新高优先级币种列表"""
+    """更新币种列表"""
     global high_priority_symbols, last_priority_update
     
-    log(f"更新币种列表 (模式={SYMBOLS_MODE})...")
     t0 = time.time()
+    configured = _get_configured_symbols()
     
-    if SYMBOLS_MODE == "whitelist" and SYMBOLS_LIST:
-        # 白名单模式：直接使用配置的币种
-        symbols = SYMBOLS_LIST
-        log(f"白名单模式: {len(symbols)} 币种")
-    elif SYMBOLS_MODE == "blacklist" and SYMBOLS_LIST:
-        # 黑名单模式：高优先级排除黑名单
-        symbols = list(get_high_priority_symbols_fast(top_n=HIGH_PRIORITY_TOP_N))
-        symbols = _filter_symbols(symbols)
-        log(f"黑名单模式: {len(symbols)} 币种 (排除 {len(SYMBOLS_LIST)} 个)")
+    if configured:
+        # 使用配置的分组
+        symbols = configured
+        log(f"使用配置分组: {len(symbols)} 币种")
     else:
-        # auto模式：自动计算高优先级
+        # auto模式：动态高优先级
         symbols = list(get_high_priority_symbols_fast(top_n=HIGH_PRIORITY_TOP_N))
-        log(f"自动模式: {len(symbols)} 高优先级币种")
+        # 应用额外添加和排除
+        extra = _parse_list(os.environ.get("SYMBOLS_EXTRA", ""))
+        exclude = set(_parse_list(os.environ.get("SYMBOLS_EXCLUDE", "")))
+        symbols = sorted((set(symbols) | set(extra)) - exclude)
+        log(f"自动高优先级: {len(symbols)} 币种")
     
     high_priority_symbols = symbols
     last_priority_update = time.time()
