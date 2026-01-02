@@ -13,6 +13,7 @@ OPTIMIZATION_TODO.md
 TODO.md
 SETUP_PROMPT.md
 MARKETING.md
+CHANGELOG.md
 
 # ====================
 # Python
@@ -97,3 +98,4 @@ services/*/config/.env
 *.db-wal
 *.db-journal
 MARKETING.md
+CHANGELOG.md
