@@ -32,7 +32,7 @@ def _int_env(name: str, default: int) -> int:
 class Settings:
     """服务配置"""
     database_url: str = field(default_factory=lambda: os.getenv(
-        "DATABASE_URL", "postgresql://opentd:OpenTD_pass@localhost:5433/market_data"
+        "DATABASE_URL", "postgresql://postgres:postgres@localhost:5433/market_data"
     ))
     http_proxy: Optional[str] = field(default_factory=lambda: os.getenv("HTTP_PROXY") or os.getenv("HTTPS_PROXY"))
     

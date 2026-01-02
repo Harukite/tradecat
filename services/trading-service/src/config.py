@@ -35,7 +35,7 @@ class Config:
     # TimescaleDB（读取K线）
     db_url: str = field(default_factory=lambda: os.getenv(
         "DATABASE_URL",
-        "postgresql://opentd:OpenTD_pass@localhost:5433/market_data"
+        "postgresql://postgres:postgres@localhost:5433/market_data"
     ))
     
     # SQLite（写入指标结果）

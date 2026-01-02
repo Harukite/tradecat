@@ -26,7 +26,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 TRADING_SERVICE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PROJECT_ROOT = os.path.dirname(os.path.dirname(TRADING_SERVICE_DIR))  # tradecat/
-DB_URL = os.environ.get("DATABASE_URL", "postgresql://opentd:OpenTD_pass@localhost:5433/market_data")
+DB_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:postgres@localhost:5433/market_data")
 SQLITE_PATH = os.environ.get("INDICATOR_SQLITE_PATH", os.path.join(PROJECT_ROOT, "libs/database/services/telegram-service/market_data.db"))
 
 # 币种管理配置
