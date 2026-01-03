@@ -3888,13 +3888,19 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.answer()
 
         elif query.data == "coin_query":
-            # 币种查询入口
+            # 币种查询入口 - 显示配置的币种列表
+            from common.symbols import get_configured_symbols
+            symbols = get_configured_symbols()
+            if symbols:
+                # 去掉 USDT 后缀
+                coins = [s.replace("USDT", "") for s in symbols]
+                coins_text = "\n".join(coins)
+            else:
+                coins_text = "BTC\nETH\nSOL"
             text = (
                 "🔍 *币种查询*\n\n"
                 "请发送币种名称触发查询：\n"
-                "• `BTC!` - 查询比特币\n"
-                "• `ETH!` - 查询以太坊\n"
-                "• `SOL!` - 查询 Solana\n\n"
+                f"```\n{coins_text}\n```\n"
                 "格式：`币种名!`（加感叹号）"
             )
             keyboard = InlineKeyboardMarkup([
