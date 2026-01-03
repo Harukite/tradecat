@@ -496,7 +496,7 @@ def format_float(val: float) -> str:
 
 # ==================== K线形态独立界面 ====================
 
-def render_pattern_panel(symbol: str, period: str = "15m") -> str:
+def render_pattern_panel(symbol: str, enabled_periods: Dict[str, bool] | None = None) -> str:
     """渲染单币种 K线形态面板（独立界面）"""
     provider = get_ranking_provider()
     sym = format_symbol(symbol)
@@ -505,11 +505,16 @@ def render_pattern_panel(symbol: str, period: str = "15m") -> str:
     
     sym_full = sym + "USDT" if not sym.endswith("USDT") else sym
     
-    # 获取所有周期的形态数据
+    # 默认周期开关：15m/1h/4h 开启，其他关闭
+    if enabled_periods is None:
+        enabled_periods = {"1m": False, "5m": False, "15m": True, "1h": True, "4h": True, "1d": False, "1w": False}
+    
     periods = ["1m", "5m", "15m", "1h", "4h", "1d", "1w"]
-    lines = [f"🕯️ {sym} K线形态分析\n"]
+    lines = [f"🕯️ {sym} K线形态分析", "```"]
     
     for p in periods:
+        if not enabled_periods.get(p, False):
+            continue
         row = provider._fetch_single_row("K线形态扫描器", p, sym_full)
         if not row:
             continue
@@ -546,8 +551,9 @@ def render_pattern_panel(symbol: str, period: str = "15m") -> str:
             lines.append(f"  ⚪ 中性: {', '.join(neutral)}")
         lines.append("")
     
-    if len(lines) == 1:
-        lines.append("暂无形态数据")
+    lines.append("```")
+    if len(lines) == 3:  # 只有标题和代码块
+        return f"🕯️ {sym} K线形态分析\n```\n暂无形态数据\n```"
     
     return "\n".join(lines)
 

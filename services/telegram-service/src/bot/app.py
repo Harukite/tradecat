@@ -450,6 +450,31 @@ def build_pattern_keyboard() -> InlineKeyboardMarkup:
     ])
 
 
+def build_pattern_keyboard_with_periods(enabled_periods: dict) -> InlineKeyboardMarkup:
+    """K线形态面板的按钮（带周期开关）"""
+    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+    periods = ["1m", "5m", "15m", "1h", "4h", "1d", "1w"]
+    row_period = []
+    for p in periods:
+        on = enabled_periods.get(p, False)
+        label = p if on else f"❎{p}"
+        row_period.append(InlineKeyboardButton(label, callback_data=f"pattern_toggle_{p}"))
+    
+    return InlineKeyboardMarkup([
+        row_period,
+        [
+            InlineKeyboardButton("基础数据", callback_data="single_panel_basic"),
+            InlineKeyboardButton("合约数据", callback_data="single_panel_futures"),
+            InlineKeyboardButton("高级数据", callback_data="single_panel_advanced"),
+            InlineKeyboardButton("✅🕯️形态", callback_data="single_panel_pattern"),
+        ],
+        [
+            InlineKeyboardButton("🏠 返回主菜单", callback_data="main_menu"),
+            InlineKeyboardButton("🔄 刷新", callback_data="single_refresh"),
+        ]
+    ])
+
+
 def render_single_snapshot(symbol: str, panel: str, enabled_periods: dict, enabled_cards: dict, page: int = 0) -> tuple[str, object, int, int]:
     """封装渲染 + 键盘构建，便于重用。返回(text, keyboard, pages, page_used)。"""
     from bot.single_token_snapshot import SingleTokenSnapshot
@@ -3576,6 +3601,30 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     logger.info(f"🔍 按钮回调 / 用户: {user_id} / 按钮: {button_data}")
     
+    # ---- 形态面板周期开关 ----
+    if button_data.startswith("pattern_toggle_"):
+        if user_handler is None:
+            await query.edit_message_text("❌ 系统未就绪，请稍后重试", parse_mode='Markdown')
+            return
+        states = user_handler.user_states.setdefault(user_id, {})
+        sym = states.get("single_symbol")
+        if not sym:
+            await query.edit_message_text("请先发送例如 btc! 触发单币查询", parse_mode='Markdown')
+            return
+        pattern_periods = states.get("pattern_periods", {"1m": False, "5m": False, "15m": True, "1h": True, "4h": True, "1d": False, "1w": False})
+        period = button_data.replace("pattern_toggle_", "")
+        pattern_periods[period] = not pattern_periods.get(period, False)
+        states["pattern_periods"] = pattern_periods
+        
+        from bot.single_token_snapshot import render_pattern_panel
+        text = render_pattern_panel(sym, pattern_periods)
+        keyboard = build_pattern_keyboard_with_periods(pattern_periods)
+        try:
+            await query.edit_message_text(text, reply_markup=keyboard, parse_mode='Markdown')
+        except BadRequest:
+            pass
+        return
+    
     # ---- 单币快照按钮处理 ----
     if button_data.startswith("single_"):
         if user_handler is None:
@@ -3605,8 +3654,9 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if panel == "pattern":
                 from bot.single_token_snapshot import render_pattern_panel
                 states["single_panel"] = panel
-                text = render_pattern_panel(sym)
-                keyboard = build_pattern_keyboard()
+                pattern_periods = states.get("pattern_periods", {"1m": False, "5m": False, "15m": True, "1h": True, "4h": True, "1d": False, "1w": False})
+                text = render_pattern_panel(sym, pattern_periods)
+                keyboard = build_pattern_keyboard_with_periods(pattern_periods)
                 try:
                     await query.edit_message_text(text, reply_markup=keyboard, parse_mode='Markdown')
                 except BadRequest as e:
@@ -3631,8 +3681,9 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # 形态面板刷新
             if panel == "pattern":
                 from bot.single_token_snapshot import render_pattern_panel
-                text = render_pattern_panel(sym)
-                keyboard = build_pattern_keyboard()
+                pattern_periods = states.get("pattern_periods", {"1m": False, "5m": False, "15m": True, "1h": True, "4h": True, "1d": False, "1w": False})
+                text = render_pattern_panel(sym, pattern_periods)
+                keyboard = build_pattern_keyboard_with_periods(pattern_periods)
                 try:
                     await query.edit_message_text(text, reply_markup=keyboard, parse_mode='Markdown')
                 except BadRequest:
