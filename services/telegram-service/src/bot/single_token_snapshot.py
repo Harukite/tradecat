@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import math
+import os
 import unicodedata
 from pathlib import Path
 from typing import Dict, Iterable, List, Literal, Sequence, Tuple
