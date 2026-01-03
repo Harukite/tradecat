@@ -211,6 +211,14 @@ IGNORE_FIELDS = {
     "updated_at", "timestamp", "bucket_ts", "market", "interval"
 }
 
+# 从环境变量读取屏蔽字段（逗号分隔）
+def _get_hidden_fields() -> set:
+    """获取需要屏蔽的字段（从 SNAPSHOT_HIDDEN_FIELDS 环境变量）"""
+    hidden = os.environ.get("SNAPSHOT_HIDDEN_FIELDS", "")
+    if not hidden:
+        return set()
+    return {f.strip() for f in hidden.split(",") if f.strip()}
+
 
 def _disp_width(text: str) -> int:
     """字符串显示宽度（ASCII=1，宽字符=2）。"""
@@ -315,6 +323,7 @@ class SingleTokenSnapshot:
         header = ["字段\\周期"] + columns
         rows: List[List[str]] = []
         table_field_map = TABLE_FIELDS.get(panel, {})
+        hidden_fields = _get_hidden_fields()
 
         # 组装数据行：按表 -> 字段 -> 周期
         for table in self._discover_tables(panel):
@@ -329,6 +338,9 @@ class SingleTokenSnapshot:
 
             for field in fields:
                 col_id, label = field
+                # 跳过屏蔽字段
+                if col_id in hidden_fields or label in hidden_fields:
+                    continue
                 row = [label]
                 for period in columns:
                     row.append(self._fetch_table_value(table, period, (col_id,), panel))
