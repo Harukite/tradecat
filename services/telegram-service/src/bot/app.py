@@ -412,9 +412,9 @@ def build_single_snapshot_keyboard(enabled_periods: dict, panel: str, enabled_ca
         return InlineKeyboardButton(label, callback_data=f"single_panel_{code}")
 
     row_panel = [
-        panel_btn("基础数据", "basic"),
-        panel_btn("合约数据", "futures"),
-        panel_btn("高级数据", "advanced"),
+        panel_btn("💵基础", "basic"),
+        panel_btn("📑合约", "futures"),
+        panel_btn("🧠高级", "advanced"),
         InlineKeyboardButton("🕯️形态", callback_data="single_panel_pattern"),
     ]
     # 主控行：返回主菜单 / 刷新 / 下一页 / 上一页（无则省略按钮）
@@ -438,9 +438,9 @@ def build_pattern_keyboard() -> InlineKeyboardMarkup:
     from telegram import InlineKeyboardButton, InlineKeyboardMarkup
     return InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("基础数据", callback_data="single_panel_basic"),
-            InlineKeyboardButton("合约数据", callback_data="single_panel_futures"),
-            InlineKeyboardButton("高级数据", callback_data="single_panel_advanced"),
+            InlineKeyboardButton("💵基础", callback_data="single_panel_basic"),
+            InlineKeyboardButton("📑合约", callback_data="single_panel_futures"),
+            InlineKeyboardButton("🧠高级", callback_data="single_panel_advanced"),
             InlineKeyboardButton("✅🕯️形态", callback_data="single_panel_pattern"),
         ],
         [
@@ -463,9 +463,9 @@ def build_pattern_keyboard_with_periods(enabled_periods: dict) -> InlineKeyboard
     return InlineKeyboardMarkup([
         row_period,
         [
-            InlineKeyboardButton("基础数据", callback_data="single_panel_basic"),
-            InlineKeyboardButton("合约数据", callback_data="single_panel_futures"),
-            InlineKeyboardButton("高级数据", callback_data="single_panel_advanced"),
+            InlineKeyboardButton("💵基础", callback_data="single_panel_basic"),
+            InlineKeyboardButton("📑合约", callback_data="single_panel_futures"),
+            InlineKeyboardButton("🧠高级", callback_data="single_panel_advanced"),
             InlineKeyboardButton("✅🕯️形态", callback_data="single_panel_pattern"),
         ],
         [
