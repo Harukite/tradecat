@@ -4,6 +4,10 @@
 
 > ⚠️ **注意**：此服务为交易执行模块，需要 API 密钥，请谨慎使用。
 
+## 策略来源
+
+本模块的做市策略基于 [Hummingbot](https://github.com/hummingbot/hummingbot) 开源项目构建，参考了其 Avellaneda-Stoikov 做市策略实现。
+
 ## 架构
 
 ```
