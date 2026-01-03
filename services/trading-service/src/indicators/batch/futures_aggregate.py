@@ -14,6 +14,7 @@ def _f(v) -> Optional[float]:
 
 
 def _linreg_slope(values: List[float]) -> Optional[float]:
+    """线性回归斜率（绝对值）"""
     if not values or len(values) < 2: return None
     n = len(values)
     x_sum = (n - 1) * n / 2
@@ -22,6 +23,17 @@ def _linreg_slope(values: List[float]) -> Optional[float]:
     xy_sum = sum(i * v for i, v in enumerate(values))
     denom = n * x2_sum - x_sum * x_sum
     return (n * xy_sum - x_sum * y_sum) / denom if denom else None
+
+
+def _linreg_slope_pct(values: List[float]) -> Optional[float]:
+    """线性回归斜率（百分比，相对于最新值）"""
+    if not values or len(values) < 2: return None
+    slope = _linreg_slope(values)
+    if slope is None: return None
+    latest = values[-1]
+    if not latest or latest == 0: return None
+    # 斜率占最新值的百分比
+    return (slope / latest) * 100
 
 
 def _std_over_mean(values: List[float]) -> Optional[float]:
@@ -151,7 +163,7 @@ class FuturesAggregate(Indicator):
         taker_series = [_f(h.get("tlsvr")) for h in history if _f(h.get("tlsvr"))]
         
         volatility = _std_over_mean(oi_series)
-        oi_slope = _linreg_slope(oi_series)
+        oi_slope = _linreg_slope_pct(oi_series)  # 改用百分比斜率
         oi_z = _z_score(oiv, oi_series) if oiv else None
         stability_pct = _percentile_rank(oi_series, volatility) if volatility else None
         
